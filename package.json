@@ -13,6 +13,7 @@
     "build:server": "tsc -p server/tsconfig.json",
     "bump": "node scripts/bump-version.js",
     "build:apk": "node scripts/build-apk.js",
+    "release:upload": "node scripts/upload-release.js",
     "start": "node dist-server/index.js",
     "cap:sync": "cap sync",
     "cap:add:android": "cap add android",
