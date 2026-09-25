@@ -36,6 +36,7 @@ const newVersion = parts.join('.');
 const today = new Date().toISOString().split('T')[0];
 
 versionData.version = newVersion;
+versionData.latestVersion = newVersion;
 versionData.versionCode = newCode;
 // Ensure downloadUrl points to GitHub Releases
 if (!versionData.downloadUrl || versionData.downloadUrl === '/download/app') {

@@ -26,9 +26,9 @@ const currentBuild = ref(1);
 const error = ref<string | null>(null);
 const lastChecked = ref<number | null>(null);
 
-function compareSemver(v1: string, v2: string): number {
-  const parts1 = v1.replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
-  const parts2 = v2.replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+function compareSemver(v1?: string | null, v2?: string | null): number {
+  const parts1 = String(v1 || '0.0.0').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  const parts2 = String(v2 || '0.0.0').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
   const maxLen = Math.max(parts1.length, parts2.length);
 
   for (let i = 0; i < maxLen; i++) {
@@ -97,7 +97,13 @@ export function useAppUpdate() {
         throw new Error(`Server returned ${res.status}`);
       }
 
-      const data: AppUpdateInfo = await res.json();
+      const rawData: any = await res.json();
+      const resolvedVersion = rawData.latestVersion || rawData.version || '1.0.0';
+      const data: AppUpdateInfo = {
+        ...rawData,
+        latestVersion: resolvedVersion,
+        versionCode: Number(rawData.versionCode) || 1
+      };
       updateInfo.value = data;
       lastChecked.value = Date.now();
 
