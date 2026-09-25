@@ -38,66 +38,11 @@ A high-performance, mobile-first Movie & TV streaming app built using **Node.js 
 
 ---
 
-## 🚀 Getting Started
+## 📥 Download & Installation
 
-### 1. Run Development Server (Both Frontend & Backend)
+1. Go to the [**Releases**](https://github.com/kingpin222/watzem/releases) section.
+2. Download the latest **`app-release.apk`**.
+3. Open the downloaded APK on your Android device and tap **Install**.  
+   *(If prompted by Android, enable "Allow from this source").*
+4. Open **WATZEM** and enjoy streaming!
 
-```bash
-npm run dev
-```
-
-- **Frontend (Vite)**: http://localhost:5173
-- **Backend API**: http://localhost:2727
-
-### 2. Build for Production
-
-```bash
-npm run build
-```
-
-This compiles both the Vue 3 frontend (`dist/`) and the TypeScript server (`dist-server/`).
-
-### 3. Run Production Server
-
-```bash
-npm start
-```
-
-### 4. Run as a Windows Service (via node-windows)
-
-To install the API as an auto-starting background Windows Service:
-
-```bash
-# First build the server
-npm run build
-
-# Install and start the Windows Service
-npm run service:install
-
-# To uninstall the service
-npm run service:uninstall
-```
-
----
-
-## 📲 Capacitor Mobile Deployment
-
-### Sync Web Assets with Capacitor
-
-```bash
-npm run build:client
-npx cap sync
-```
-
-### Add Mobile Platforms
-
-- **Android**:
-  ```bash
-  npm run cap:add:android
-  npx cap open android
-  ```
-- **iOS**:
-  ```bash
-  npm run cap:add:ios
-  npx cap open ios
-  ```
