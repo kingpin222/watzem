@@ -89,6 +89,7 @@ export function useAppUpdate() {
 
       // Query version endpoint (from Cloudflare edge / worker / raw CDN / local proxy)
       const endpoint = getUpdateEndpoint();
+      console.log('[AppUpdate] Querying update endpoint:', endpoint);
       const separator = endpoint.includes('?') ? '&' : '?';
       const res = await fetch(`${endpoint}${separator}t=${Date.now()}`);
 
@@ -100,10 +101,14 @@ export function useAppUpdate() {
       updateInfo.value = data;
       lastChecked.value = Date.now();
 
+      console.log(`[AppUpdate] Current: v${currentVersion.value} (${currentBuild.value}) vs Remote: v${data.latestVersion} (${data.versionCode})`);
+
       // Compare versions
-      const hasCodeUpdate = data.versionCode > currentBuild.value;
+      const hasCodeUpdate = Number(data.versionCode) > Number(currentBuild.value);
       const hasSemverUpdate = compareSemver(data.latestVersion, currentVersion.value) > 0;
       const hasNewVersion = testUpdate || hasCodeUpdate || hasSemverUpdate;
+
+      console.log('[AppUpdate] Update needed?', hasNewVersion, { hasCodeUpdate, hasSemverUpdate });
 
       updateAvailable.value = hasNewVersion;
 

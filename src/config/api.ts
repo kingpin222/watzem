@@ -14,7 +14,9 @@ export const API_SERVER_URL = (import.meta.env.VITE_API_SERVER as string) || '';
  * Dedicated Update Server URL (e.g. Cloudflare Worker, Raw CDN, or Edge Proxy)
  * Setting this ensures the client queries updates without exposing the real backend server IP.
  */
-export const UPDATE_SERVER_URL = (import.meta.env.VITE_UPDATE_SERVER as string) || '';
+export const UPDATE_SERVER_URL = 
+  (import.meta.env.VITE_UPDATE_SERVER as string) || 
+  'https://raw.githubusercontent.com/kingpin222/watzem/main/version.json';
 
 export function getApiBaseUrl(): string {
   if (API_SERVER_URL) {
