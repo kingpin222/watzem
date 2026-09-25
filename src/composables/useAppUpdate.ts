@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { API_SERVER_URL, UPDATE_SERVER_URL, getUpdateEndpoint } from '../config/api';
 
 export interface AppUpdateInfo {
@@ -168,7 +169,7 @@ export function useAppUpdate() {
   /**
    * Start downloading and installing the update
    */
-  const startUpdate = () => {
+  const startUpdate = async () => {
     if (!updateInfo.value) return;
     isDownloading.value = true;
 
@@ -179,18 +180,34 @@ export function useAppUpdate() {
         ? rawUrl
         : (baseServer ? `${baseServer.replace(/\/+$/, '')}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}` : rawUrl);
 
-      // Trigger download
+      console.log('[AppUpdate] Starting update download from:', fullUrl);
+
+      // 1. On Android & iOS Native: Launch System Browser / Download Manager via Capacitor Browser
+      if (isNative.value) {
+        try {
+          await Browser.open({
+            url: fullUrl,
+            windowName: '_system',
+            toolbarColor: '#0f1017'
+          });
+          setTimeout(() => {
+            isDownloading.value = false;
+          }, 3000);
+          return;
+        } catch (nativeErr) {
+          console.warn('[AppUpdate] Native Browser.open failed, trying web fallback:', nativeErr);
+        }
+      }
+
+      // 2. Web browser: Trigger file download via anchor
       const link = document.createElement('a');
       link.href = fullUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
       link.setAttribute('download', `WATZEM-v${updateInfo.value.latestVersion}.apk`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      // On Android native, also attempt window.open to prompt system download manager
-      if (isNative.value && typeof window !== 'undefined') {
-        window.open(fullUrl, '_system');
-      }
 
       // Reset download animation state after a brief delay
       setTimeout(() => {

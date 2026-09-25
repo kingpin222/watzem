@@ -12,21 +12,17 @@ import {
   Sparkles
 } from 'lucide-vue-next';
 
+import { openExternalUrl } from '../composables/useMonetization';
+
 const { triggerMedium } = useHaptics();
 
 const isDownloading = ref(false);
-const downloadUrl = '/download/app';
+const downloadUrl = 'https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk';
 
-const handleDownload = () => {
+const handleDownload = async () => {
   triggerMedium();
   isDownloading.value = true;
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.setAttribute('download', 'WATZEM.apk');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
+  await openExternalUrl(downloadUrl);
   setTimeout(() => {
     isDownloading.value = false;
   }, 3500);
