@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { API_SERVER_URL, UPDATE_SERVER_URL, getUpdateEndpoint } from '../config/api';
@@ -16,12 +16,34 @@ export interface AppUpdateInfo {
   mandatory: boolean;
 }
 
+interface AppInstallerPlugin {
+  startDownload(options: { url: string }): Promise<void>;
+  installApkFile(options?: { path?: string }): Promise<void>;
+  addListener(
+    eventName: 'downloadProgress',
+    listenerFunc: (info: { progress: number; bytesDownloaded: number; totalBytes: number }) => void
+  ): Promise<any>;
+  addListener(
+    eventName: 'downloadComplete',
+    listenerFunc: (info: { success: boolean; filePath: string }) => void
+  ): Promise<any>;
+  addListener(
+    eventName: 'downloadError',
+    listenerFunc: (info: { error: string }) => void
+  ): Promise<any>;
+}
+
+const AppInstaller = registerPlugin<AppInstallerPlugin>('AppInstaller');
+
 // Global shared state across components
 const updateInfo = ref<AppUpdateInfo | null>(null);
 const updateAvailable = ref(false);
 const isChecking = ref(false);
 const showUpdateModal = ref(false);
 const isDownloading = ref(false);
+const downloadProgress = ref(0);
+const downloadBytesText = ref('');
+const downloadStatusText = ref('');
 const currentVersion = ref('1.0.0');
 const currentBuild = ref(1);
 const error = ref<string | null>(null);
@@ -172,6 +194,9 @@ export function useAppUpdate() {
   const startUpdate = async () => {
     if (!updateInfo.value) return;
     isDownloading.value = true;
+    downloadProgress.value = 0;
+    downloadStatusText.value = 'Preparing download...';
+    downloadBytesText.value = '';
 
     try {
       const rawUrl = updateInfo.value.downloadUrl || '/download/app';
@@ -182,24 +207,49 @@ export function useAppUpdate() {
 
       console.log('[AppUpdate] Starting update download from:', fullUrl);
 
-      // 1. On Android & iOS Native: Launch System Browser / Download Manager via Capacitor Browser
+      // 1. On Android Native: In-App Download with Progress & Direct Package Installer
       if (isNative.value) {
         try {
-          await Browser.open({
-            url: fullUrl,
-            windowName: '_system',
-            toolbarColor: '#0f1017'
+          downloadStatusText.value = 'Connecting to server...';
+
+          await AppInstaller.addListener('downloadProgress', (info: { progress: number; bytesDownloaded: number; totalBytes: number }) => {
+            downloadProgress.value = Math.min(100, Math.max(0, info.progress));
+            const dlMB = (info.bytesDownloaded / (1024 * 1024)).toFixed(1);
+            const totalMB = info.totalBytes > 0 ? (info.totalBytes / (1024 * 1024)).toFixed(1) : '45.0';
+            downloadBytesText.value = `${dlMB} MB / ${totalMB} MB`;
+            downloadStatusText.value = `Downloading update... ${downloadProgress.value}%`;
           });
+
+          await AppInstaller.addListener('downloadComplete', (_info: { success: boolean; filePath: string }) => {
+            downloadProgress.value = 100;
+            downloadStatusText.value = 'Download complete! Opening installer...';
+            setTimeout(() => {
+              isDownloading.value = false;
+            }, 3000);
+          });
+
+          await AppInstaller.addListener('downloadError', (err: { error: string }) => {
+            console.warn('[AppInstaller] In-app download failed, opening browser:', err);
+            downloadStatusText.value = 'Download error. Opening browser...';
+            Browser.open({ url: fullUrl, windowName: '_system' });
+            setTimeout(() => {
+              isDownloading.value = false;
+            }, 3000);
+          });
+
+          await AppInstaller.startDownload({ url: fullUrl });
+          return;
+        } catch (nativeErr) {
+          console.warn('[AppUpdate] Native AppInstaller failed, opening browser:', nativeErr);
+          await Browser.open({ url: fullUrl, windowName: '_system' });
           setTimeout(() => {
             isDownloading.value = false;
           }, 3000);
           return;
-        } catch (nativeErr) {
-          console.warn('[AppUpdate] Native Browser.open failed, trying web fallback:', nativeErr);
         }
       }
 
-      // 2. Web browser: Trigger file download via anchor
+      // 2. Web browser: Standard download via anchor
       const link = document.createElement('a');
       link.href = fullUrl;
       link.target = '_blank';
@@ -243,6 +293,9 @@ export function useAppUpdate() {
     isChecking,
     showUpdateModal,
     isDownloading,
+    downloadProgress,
+    downloadBytesText,
+    downloadStatusText,
     currentVersion,
     currentBuild,
     error,

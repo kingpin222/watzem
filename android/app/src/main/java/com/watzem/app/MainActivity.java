@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FullScreenPlugin.class);
         registerPlugin(AdShieldPlugin.class);
         registerPlugin(PipPlugin.class);
+        registerPlugin(AppInstallerPlugin.class);
         super.onCreate(savedInstanceState);
 
         try {

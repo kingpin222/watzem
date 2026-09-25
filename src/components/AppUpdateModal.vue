@@ -16,6 +16,9 @@ const {
   updateInfo,
   showUpdateModal,
   isDownloading,
+  downloadProgress,
+  downloadBytesText,
+  downloadStatusText,
   currentVersion,
   startUpdate,
   dismissModal
@@ -107,17 +110,34 @@ const handleDismiss = () => {
           </ul>
         </div>
 
+        <!-- In-App Download Progress Container -->
+        <div v-if="isDownloading" class="download-progress-container">
+          <div class="progress-labels">
+            <span class="progress-status">{{ downloadStatusText || 'Downloading update...' }}</span>
+            <span class="progress-pct font-mono">{{ downloadProgress }}%</span>
+          </div>
+          <div class="progress-track">
+            <div
+              class="progress-bar-fill"
+              :style="{ width: `${Math.max(4, downloadProgress)}%` }"
+            >
+              <span class="progress-glow-dot"></span>
+            </div>
+          </div>
+          <div v-if="downloadBytesText" class="progress-subtext font-mono">
+            {{ downloadBytesText }}
+          </div>
+        </div>
+
         <!-- Action Buttons -->
-        <div class="update-actions">
+        <div v-else class="update-actions">
           <button
             class="update-now-btn"
-            :class="{ loading: isDownloading }"
-            :disabled="isDownloading"
             @click="handleUpdate"
           >
-            <Download :size="18" class="btn-icon" :class="{ 'bounce-anim': !isDownloading }" />
-            <span>{{ isDownloading ? 'Downloading Update...' : (updateInfo.mandatory ? 'Install Required Update' : 'Update & Install Now') }}</span>
-            <span v-if="!isDownloading" class="shimmer-sweep"></span>
+            <Download :size="18" class="btn-icon bounce-anim" />
+            <span>{{ updateInfo.mandatory ? 'Install Required Update' : 'Update & Install Now' }}</span>
+            <span class="shimmer-sweep"></span>
           </button>
 
           <button
@@ -490,5 +510,80 @@ const handleDismiss = () => {
 
 .safe-tag svg {
   color: #facc15;
+}
+
+/* In-App Download Progress Container */
+.download-progress-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  animation: fadeInProgress 0.25s ease forwards;
+}
+
+@keyframes fadeInProgress {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.progress-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+}
+
+.progress-status {
+  color: #f3f4f6;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.progress-pct {
+  color: #eab308;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ca8a04, #eab308, #fef08a);
+  border-radius: 999px;
+  transition: width 0.15s ease-out;
+  position: relative;
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.6);
+}
+
+.progress-glow-dot {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 6px #ffffff;
+}
+
+.progress-subtext {
+  font-size: 0.68rem;
+  color: #9ca3af;
+  text-align: right;
 }
 </style>
