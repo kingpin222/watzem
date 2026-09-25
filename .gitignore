@@ -1,6 +1,7 @@
-# Dependencies
+# Dependencies & Cache
 node_modules/
 update-server/node_modules/
+.vite/
 
 # Production builds
 dist/
