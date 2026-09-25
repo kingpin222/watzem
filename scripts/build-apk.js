@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { uploadRelease } from './upload-release.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,7 +65,10 @@ const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
 const versionData = JSON.parse(fs.readFileSync(path.join(projectRoot, 'version.json'), 'utf-8'));
 
 console.log('\n🎉 ========================================');
-console.log(`✅ APK Build Complete! Version: v${versionData.version} (Build: ${versionData.versionCode})`);
+console.log(`✅ Local APK Build Complete! Version: v${versionData.version} (Build: ${versionData.versionCode})`);
 console.log(`📦 Installed to public/install.apk (${sizeMB} MB)`);
-console.log('🚀 All users will now receive the update prompt on next launch!');
 console.log('🎉 ========================================\n');
+
+// 6. Direct GitHub Release upload
+await uploadRelease();
+
