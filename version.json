@@ -1,7 +1,7 @@
 {
-  "version": "1.1.107",
-  "latestVersion": "1.1.107",
-  "versionCode": 109,
+  "version": "1.1.108",
+  "latestVersion": "1.1.108",
+  "versionCode": 110,
   "minSupportedVersion": "1.0.0",
   "releaseDate": "2026-09-25",
   "title": "WATZEM Update Required",
@@ -12,6 +12,6 @@
     "General security & stability updates"
   ],
   "downloadUrl": "https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk",
-  "fileSize": "61.05 MB",
+  "fileSize": "64.65 MB",
   "mandatory": true
 }
