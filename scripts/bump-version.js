@@ -37,12 +37,30 @@ const today = new Date().toISOString().split('T')[0];
 
 versionData.version = newVersion;
 versionData.versionCode = newCode;
-versionData.releaseDate = today;
+// Ensure downloadUrl points to GitHub Releases
+if (!versionData.downloadUrl || versionData.downloadUrl === '/download/app') {
+  versionData.downloadUrl = 'https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk';
+}
 
 fs.writeFileSync(versionJsonPath, JSON.stringify(versionData, null, 2) + '\n');
 console.log(`📦 [Auto-Bump] version.json updated: v${newVersion} (code: ${newCode})`);
 
-// 3. Update package.json
+// 3. Update public/version.json & dist/version.json
+const publicVersionPath = path.join(projectRoot, 'public/version.json');
+fs.writeFileSync(publicVersionPath, JSON.stringify(versionData, null, 2) + '\n');
+
+const distVersionPath = path.join(projectRoot, 'dist/version.json');
+if (fs.existsSync(path.dirname(distVersionPath))) {
+  fs.writeFileSync(distVersionPath, JSON.stringify(versionData, null, 2) + '\n');
+}
+
+// 4. Update update-server/version.json
+const updateServerVersionPath = path.join(projectRoot, 'update-server/version.json');
+if (fs.existsSync(path.dirname(updateServerVersionPath))) {
+  fs.writeFileSync(updateServerVersionPath, JSON.stringify(versionData, null, 2) + '\n');
+}
+
+// 5. Update package.json
 if (fs.existsSync(packageJsonPath)) {
   const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
   pkg.version = newVersion;
@@ -50,7 +68,7 @@ if (fs.existsSync(packageJsonPath)) {
   console.log(`📄 [Auto-Bump] package.json version updated to: ${newVersion}`);
 }
 
-// 4. Update android/app/build.gradle
+// 6. Update android/app/build.gradle
 if (fs.existsSync(gradlePath)) {
   let gradle = fs.readFileSync(gradlePath, 'utf-8');
   gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${newCode}`);
