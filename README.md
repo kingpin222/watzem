@@ -1,6 +1,6 @@
 # 🍿 WATZEM Movies & TV Mobile App
 
-A high-performance, mobile-first Movie & TV streaming app built using **Node.js + TypeScript**, **Vue 3 + Vite + TypeScript**, and **Capacitor**, powered by the **TMDb API** and multi-source streaming engines.
+A high-performance, mobile-first Movie & TV streaming app built powered by the **TMDb API** and multi-source streaming engines.
 
 ---
 
@@ -26,15 +26,6 @@ A high-performance, mobile-first Movie & TV streaming app built using **Node.js 
   - Bottom navigation bar designed for one-handed mobile touch.
   - Notch / Dynamic Island and gesture navigation safe-area padding.
   - Capacitor native status bar and haptic feedback support.
-
----
-
-## 🛠️ Technology Stack
-
-- **Backend**: Node.js, Express, TypeScript (`tsx`), native fetch, in-memory caching.
-- **Frontend**: Vue 3 (Composition API), TypeScript, Vite.
-- **Mobile Runtime**: Capacitor (`@capacitor/core`, `@capacitor/cli`, `@capacitor/status-bar`, `@capacitor/haptics`, `@capacitor/clipboard`, `@capacitor/app`).
-- **Styling**: Vanilla CSS with customized design tokens and smooth micro-animations.
 
 ---
 
