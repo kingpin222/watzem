@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Embedded In-App AdShield & Anti-Popup Script (Powered by AdGuard Filter Lists) -->
+    <script>
+      (function() {
+        'use strict';
+        /* 0. DevTools Protection & Anti-DisableDevTool */
+        // A. Defeat DisableDevtool library and anti-debugger scripts
+        var dummyDevTool = {
+          isRunning: false,
+          isDevToolOpened: function() { return false; },
+          config: {},
+          ondevtoolopen: function() {},
+          close: function() {},
+          init: function() {},
+          version: '0.3.8'
+        };
+        try {
+          Object.defineProperty(window, 'DisableDevtool', {
+            get: function() { return dummyDevTool; },
+            set: function() {},
+            configurable: false
+          });
+        } catch (_) {
+          window.DisableDevtool = dummyDevTool;
+        }
+
+        // B. Defeat Function("debugger") and constructor("debugger") infinite loops
+        try {
+          var _origFunc = window.Function;
+          var safeFunc = function() {
+            var args = Array.prototype.slice.call(arguments);
+            if (args.length > 0) {
+              var last = args[args.length - 1];
+              if (typeof last === 'string' && last.indexOf('debugger') !== -1) {
+                args[args.length - 1] = last.replace(/debugger\s*;?/g, '/* debugger neutralized */');
+              }
+            }
+            return _origFunc.apply(this, args);
+          };
+          safeFunc.prototype = _origFunc.prototype;
+          window.Function = safeFunc;
+          Function.prototype.constructor = safeFunc;
+        } catch (_) {}
+
+        // C. Neutralize aggressive console.clear() loops
+        try {
+          console.clear = function() {};
+        } catch (_) {}
+
+        // D. Protect DevTools keyboard shortcuts (F12, Ctrl+Shift+I, Cmd+Option+I, etc.)
+        try {
+          window.addEventListener('keydown', function(e) {
+            var key = e.key || '';
+            var isF12 = key === 'F12' || e.keyCode === 123;
+            var isDevShortcut = (e.ctrlKey || e.metaKey) && (e.shiftKey || e.altKey) && (
+              key === 'I' || key === 'i' ||
+              key === 'J' || key === 'j' ||
+              key === 'C' || key === 'c' ||
+              e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67
+            );
+            var isViewSource = (e.ctrlKey || e.metaKey) && (key === 'U' || key === 'u' || e.keyCode === 85);
+
+            if (isF12 || isDevShortcut || isViewSource) {
+              e.stopImmediatePropagation();
+              return true;
+            }
+          }, true);
+        } catch (_) {}
+
+        // E. Protect Context Menu (Right Click Inspect)
+        try {
+          window.addEventListener('contextmenu', function(e) {
+            e.stopImmediatePropagation();
+          }, true);
+        } catch (_) {}
+
+        /* AdGuard Scriptlet Stubs (Prevent ad tracker crashes and anti-adblock detection) */
+        try {
+          window.adscore = window.adscore || { check: function() {}, init: function() {} };
+          window.cnxProxyTask = window.cnxProxyTask || function() {};
+          window.connatix = window.connatix || {};
+          window.aclib = window.aclib || { runPop: function() {}, runAutoTag: function() {} };
+        } catch (_) {}
+
+        /* 1. Safe guard against property collision and adblock detectors */
+        try {
+          var origDef = Object.defineProperty;
+          Object.defineProperty = function(o, p, desc) {
+            try {
+              return origDef(o, p, desc);
+            } catch (e) {
+              if (p === 'aclib' || (e && e.message && e.message.indexOf('Cannot redefine property') !== -1)) {
+                return o;
+              }
+              throw e;
+            }
+          };
+          window.addEventListener('error', function(e) {
+            if (e && e.message && (e.message.indexOf('aclib') !== -1 || e.message.indexOf('Cannot redefine property') !== -1)) {
+              if (e.preventDefault) e.preventDefault();
+              if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+              return true;
+            }
+          }, true);
+        } catch (_) {}
+
+        /* Safe guard against document.domain origin-keyed mutation warnings */
+        try {
+          var origDomain = document.domain;
+          Object.defineProperty(document, 'domain', {
+            get: function() { return origDomain; },
+            set: function(_) {},
+            configurable: true
+          });
+        } catch (_) {}
+
+        /* AdGuard domain matcher */
+        var AD_MATCHERS = [
+          'connatix', 'cnx_usync', 'adscore', '3lift', 'triplelift', 'adform',
+          'bidswitch', 'bidgx', 'bidgency', 'criteo', 'bidr.io', 'doubleverify',
+          'moatads', 'scorecardresearch', 'sportradarserving', 'spotx', 'teads',
+          'popads', 'popcash', 'propeller', 'exoclick', 'juicyads', 'adcash',
+          'clickadu', 'monetag', 'hilltopads', 'galaksion', 'richpush', 'admaven',
+          'yllix', 'adoperator', 'bidvertiser', 'traffichunt', 'infolinks',
+          'revenuehits', 'onclickperformance', 'trafficjunky', 'realsrv',
+          'deloton', 'adsterra', 'bet365', '1xbet', 'adnxs', 'cpmstar', 'taboola',
+          'disable-devtool', 'disabledevtool', 'anti-debug', 'antidebug',
+          'googlesyndication', 'googleadservices', 'doubleclick', 'adsbygoogle', 'pagead'
+        ];
+
+        function isBlockedAdUrl(u) {
+          if (!u) return false;
+          var s = '';
+          try {
+            s = (typeof u === 'string') ? u : (u.toString ? u.toString() : String(u));
+          } catch (_) {
+            s = String(u || '');
+          }
+          s = (s || '').toLowerCase();
+          if (!s) return false;
+          // Whitelist essential fonts, reCAPTCHA, and verified community support/VPN domains
+          if (
+            s.indexOf('fonts.googleapis') !== -1 ||
+            s.indexOf('fonts.gstatic') !== -1 ||
+            s.indexOf('recaptcha') !== -1 ||
+            s.indexOf('buymeacoffee.com') !== -1 ||
+            s.indexOf('ko-fi.com') !== -1 ||
+            s.indexOf('nordvpn') !== -1
+          ) {
+            return false;
+          }
+          // Block AdSense, DoubleClick, Google Ad services
+          if (
+            s.indexOf('googlesyndication') !== -1 ||
+            s.indexOf('googleadservices') !== -1 ||
+            s.indexOf('doubleclick') !== -1 ||
+            s.indexOf('adsbygoogle') !== -1 ||
+            s.indexOf('pagead') !== -1
+          ) {
+            return true;
+          }
+          for (var i = 0; i < AD_MATCHERS.length; i++) {
+            if (s.indexOf(AD_MATCHERS[i]) !== -1) return true;
+          }
+          return false;
+        }
+
+        /* Early fetch interceptor for AdGuard domains */
+        try {
+          var _origFetch = window.fetch;
+          window.fetch = function(input) {
+            var url = typeof input === 'string' ? input : (input && input.url ? input.url : String(input));
+            if (isBlockedAdUrl(url)) {
+              return Promise.resolve(new Response(null, { status: 204, statusText: 'No Content' }));
+            }
+            return _origFetch.apply(window, arguments);
+          };
+        } catch (_) {}
+
+        /* Neutralize rogue document.write calls from third-party ad networks */
+        try {
+          var _origDocWrite = document.write;
+          document.write = function() {
+            var content = arguments[0] ? String(arguments[0]) : '';
+            if (content.indexOf('<script') !== -1 || isBlockedAdUrl(content)) {
+              return;
+            }
+            return _origDocWrite ? _origDocWrite.apply(document, arguments) : undefined;
+          };
+        } catch (_) {}
+
+        /* 2. Dummy Window Object returned to rogue scripts to prevent runtime crashes */
+        var dummyWindow = {
+          closed: true,
+          length: 0,
+          opener: null,
+          parent: window,
+          top: window,
+          window: null,
+          frames: [],
+          location: {
+            href: 'about:blank',
+            replace: function() {},
+            reload: function() {},
+            assign: function() {}
+          },
+          document: {
+            write: function() {},
+            open: function() {},
+            close: function() {}
+          },
+          focus: function() {},
+          blur: function() {},
+          close: function() {},
+          postMessage: function() {},
+          addEventListener: function() {},
+          removeEventListener: function() {},
+          dispatchEvent: function() { return false; }
+        };
+        dummyWindow.window = dummyWindow;
+
+        /* 3. Global Window.open popup interceptor with native signature */
+        try {
+          var _origOpen = window.open;
+          var safeOpen = function(url, target, features) {
+            var s = url ? String(url) : '';
+            // Allow legitimate app downloads, magnets, local blob URLs, and user support/partner links
+            if (
+              s.indexOf('magnet:') === 0 ||
+              s.indexOf('blob:') === 0 ||
+              s.indexOf('/api/download') !== -1 ||
+              s.indexOf('buymeacoffee.com') !== -1 ||
+              s.indexOf('ko-fi.com') !== -1 ||
+              s.indexOf('nordvpn') !== -1
+            ) {
+              return _origOpen ? _origOpen.apply(window, arguments) : null;
+            }
+            console.warn('[AdGuard] Blocked popup window.open ->', s);
+            return dummyWindow;
+          };
+          try {
+            safeOpen.toString = function() { return 'function open() { [native code] }'; };
+          } catch (_) {}
+          window.open = safeOpen;
+        } catch (_) {}
+
+        /* 4. Intercept fake scareware alerts (e.g. "Your system is infected", "Clean now") */
+        try {
+          var _origAlert = window.alert;
+          window.alert = function(msg) {
+            var str = String(msg || '').toLowerCase();
+            if (str.indexOf('virus') !== -1 || str.indexOf('infected') !== -1 || str.indexOf('clean now') !== -1 || str.indexOf('threat detected') !== -1 || str.indexOf('update flash') !== -1) {
+              console.warn('[AdGuard] Blocked scareware alert:', msg);
+              return;
+            }
+            return _origAlert ? _origAlert.apply(window, arguments) : undefined;
+          };
+        } catch (_) {}
+
+        /* 5. Anti-Frame Busting: Prevent third-party embedded players from hijacking top window */
+        try {
+          var isUserNavigating = false;
+          window.addEventListener('click', function(e) {
+            var t = e.target;
+            while (t && t !== document.body) {
+              if (t.tagName === 'A' && (t.href || '').indexOf(window.location.origin) === 0) {
+                isUserNavigating = true;
+                setTimeout(function() { isUserNavigating = false; }, 1000);
+                break;
+              }
+              t = t.parentElement;
+            }
+          }, true);
+
+          window.addEventListener('beforeunload', function(e) {
+            var hasPlayer = document.querySelector('.stream-iframe, .fullscreen-iframe');
+            if (hasPlayer && !isUserNavigating) {
+              e.preventDefault();
+              e.returnValue = '';
+              return '';
+            }
+          });
+        } catch (_) {}
+
+        /* 6. Popunder blur-focus trap: re-focus main window if an iframe click triggers window blur */
+        try {
+          window.addEventListener('blur', function() {
+            var hasPlayer = document.querySelector('.stream-iframe, .fullscreen-iframe');
+            if (hasPlayer) {
+              setTimeout(function() {
+                try { window.focus(); } catch (_) {}
+              }, 50);
+            }
+          });
+        } catch (_) {}
+      })();
+    </script>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#07070a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="WATZEM - Free Movie & TV streaming mobile app" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f59e0b'%3E%3Cpath d='M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z'/%3E%3C/svg%3E" />
+    <!-- CDN Preconnect & DNS Prefetch for Fast Media & Image Loading -->
+    <link rel="preconnect" href="https://image.tmdb.org" crossorigin />
+    <link rel="dns-prefetch" href="https://image.tmdb.org" />
+    <link rel="preconnect" href="https://api.themoviedb.org" crossorigin />
+    <link rel="dns-prefetch" href="https://api.themoviedb.org" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <title>WATZEM - Movies & TV Stream</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

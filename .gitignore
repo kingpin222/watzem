@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+update-server/node_modules/
+
+# Production builds
+dist/
+dist-server/
+
+# Environment files
+.env.local
+.env.*.local
+*.local
+
+# Archive files
+*.zip
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Android builds & secrets
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
+
+# CRITICAL: Keep signing keystore private
+android/app/*.jks
+android/app/*.keystore
+
+# iOS builds & pods
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

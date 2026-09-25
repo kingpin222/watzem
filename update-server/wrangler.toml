@@ -1,0 +1,9 @@
+name = "watzem-update-server"
+main = "cloudflare-worker.js"
+compatibility_date = "2024-09-01"
+
+# Variables can be customized without touching code
+[vars]
+LATEST_VERSION = "1.1.89"
+VERSION_CODE = "91"
+DOWNLOAD_URL = "https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk"

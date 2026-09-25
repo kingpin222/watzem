@@ -1,0 +1,16 @@
+{
+  "version": "1.1.92",
+  "versionCode": 94,
+  "minSupportedVersion": "1.0.0",
+  "releaseDate": "2026-09-25",
+  "title": "WATZEM Update Required",
+  "releaseNotes": [
+    "Critical update required to continue streaming",
+    "Smoother 1080p and 4K stream playback performance",
+    "Refined player controls and background playback",
+    "General security & stability updates"
+  ],
+  "downloadUrl": "/download/app",
+  "fileSize": "7.3 MB",
+  "mandatory": true
+}
