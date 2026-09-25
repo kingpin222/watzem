@@ -10,7 +10,7 @@
     "Refined player controls and background playback",
     "General security & stability updates"
   ],
-  "downloadUrl": "/download/app",
+  "downloadUrl": "https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk",
   "fileSize": "7.3 MB",
   "mandatory": true
 }
