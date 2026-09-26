@@ -4,6 +4,7 @@ import { MediaItem, MediaMode, MediaDetails, CastMember, TVSeason, TVEpisode, Cr
 import { useApi } from '../composables/useApi';
 import { useWatchlist } from '../composables/useWatchlist';
 import { useHaptics } from '../composables/useHaptics';
+import { useTvMode } from '../composables/useTvMode';
 import { ApiCache } from '../utils/apiCache';
 import {
   X,
@@ -46,6 +47,7 @@ const {
 } = useApi();
 const { isInWatchlist, toggleWatchlist } = useWatchlist();
 const { triggerMedium, triggerLight } = useHaptics();
+const { isTvMode } = useTvMode();
 
 // TMDB Standard Genre Map for instant frame-0 genre display without waiting for network
 const TMDB_GENRE_MAP: Record<number, string> = {
@@ -297,7 +299,7 @@ const handleWatchClick = () => {
   isPlayingMedia.value = true;
   setTimeout(() => {
     if (streamPlayerRef.value?.startPlaying) {
-      streamPlayerRef.value.startPlaying(false);
+      streamPlayerRef.value.startPlaying(isTvMode.value ? true : false);
     }
     const playerWrap = document.querySelector('.player-wrapper');
     if (playerWrap) {
@@ -701,6 +703,8 @@ const handleClose = () => {
               :class="{
                 'now-playing': ep.episode_number === activeEpisodeNumber && activeSeasonNumber === currentPlayingSeason
               }"
+              tabindex="0"
+              role="button"
               @click="playEpisode(activeSeasonNumber, ep.episode_number)"
             >
               <!-- Sleek High-Performance Episode Number & Play Badge (Zero image requests) -->
@@ -886,6 +890,7 @@ const handleClose = () => {
               v-if="trailerUrl"
               :src="trailerUrl"
               class="trailer-iframe"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
               allow="autoplay; encrypted-media; fullscreen"
               allowfullscreen
             ></iframe>

@@ -13,6 +13,7 @@ import {
 import { useApi } from '../composables/useApi';
 import { useWatchlist } from '../composables/useWatchlist';
 import { useHaptics } from '../composables/useHaptics';
+import { useTvMode } from '../composables/useTvMode';
 import { ApiCache } from '../utils/apiCache';
 import {
   ArrowLeft,
@@ -24,9 +25,14 @@ import {
   Clapperboard,
   Tv,
   Tag,
-  Play
+  Play,
+  Info,
+  BookOpen,
+  ArrowUp,
+  Search
 } from 'lucide-vue-next';
 import StreamPlayer from '../components/StreamPlayer.vue';
+import { tvSpatialNav } from '../services/tvSpatialNav';
 
 const props = withDefaults(
   defineProps<{
@@ -42,6 +48,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'back'): void;
   (e: 'close'): void;
+  (e: 'search', query: string): void;
+  (e: 'search-actor', actor: { id: number; name: string; profile_path: string | null }): void;
 }>();
 
 const {
@@ -55,6 +63,7 @@ const {
 } = useApi();
 const { isInWatchlist, toggleWatchlist } = useWatchlist();
 const { triggerMedium, triggerLight } = useHaptics();
+const { isTvMode } = useTvMode();
 
 // TMDB Standard Genre Map for instant frame-0 genre display without waiting for network
 const TMDB_GENRE_MAP: Record<number, string> = {
@@ -171,8 +180,22 @@ const genres = computed(() => {
 const keywords = computed(() => {
   const kw = details.value?.keywords;
   const arr = kw?.keywords || kw?.results || [];
-  return arr.slice(0, 8).map((k) => k.name);
+  return arr.slice(0, 16).map((k) => k.name);
 });
+
+const handleKeywordClick = (kw: string) => {
+  triggerLight();
+  emit('search', kw);
+};
+
+const handleActorClick = (actor: CastMember) => {
+  triggerLight();
+  emit('search-actor', {
+    id: actor.id,
+    name: actor.name,
+    profile_path: actor.profile_path
+  });
+};
 const directors = computed(() => details.value?.directors ?? []);
 const writers = computed(() => details.value?.writers ?? []);
 const createdBy = computed(() => details.value?.created_by?.map((c) => c.name) ?? []);
@@ -302,7 +325,7 @@ const handleWatchClick = () => {
   isPlayingMedia.value = true;
   setTimeout(() => {
     if (streamPlayerRef.value?.startPlaying) {
-      streamPlayerRef.value.startPlaying(false);
+      streamPlayerRef.value.startPlaying(isTvMode.value ? true : false);
     }
     const playerWrap = document.querySelector('.player-wrapper');
     if (playerWrap) {
@@ -625,6 +648,38 @@ const handleBack = () => {
   emit('back');
   emit('close');
 };
+
+// ── Section Anchor Navigation for D-pad & Continuous Page Scrolling ─────────
+const activeSection = ref('overview');
+
+const scrollToSection = (sectionId: string) => {
+  activeSection.value = sectionId.replace('section-', '');
+  const el = document.getElementById(sectionId);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      const focusable = el.querySelector<HTMLElement>('button, [tabindex="0"], a');
+      if (focusable) {
+        tvSpatialNav.focusElement(focusable);
+      }
+    }, 180);
+  }
+};
+
+const scrollToTop = () => {
+  activeSection.value = 'overview';
+  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  const appEl = document.getElementById('app');
+  if (appEl) appEl.scrollTo({ top: 0, behavior: 'smooth' });
+  const mainEl = document.querySelector('.main-content');
+  if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => {
+    const watchBtn = document.querySelector<HTMLElement>('.cta-watch-btn');
+    if (watchBtn) {
+      tvSpatialNav.focusElement(watchBtn);
+    }
+  }, 180);
+};
 </script>
 
 <template>
@@ -736,6 +791,57 @@ const handleBack = () => {
         />
       </div>
 
+      <!-- Section Anchor Navigation Bar for D-Pad & Quick Jump -->
+      <nav class="detail-anchors-bar no-scrollbar" aria-label="Details Sections">
+        <button
+          class="detail-anchor-link font-mono"
+          :class="{ active: activeSection === 'overview' }"
+          @click="scrollToSection('section-overview')"
+        >
+          <BookOpen :size="13" />
+          <span>Story</span>
+        </button>
+
+        <button
+          v-if="cast.length"
+          class="detail-anchor-link font-mono"
+          :class="{ active: activeSection === 'cast' }"
+          @click="scrollToSection('section-cast')"
+        >
+          <Users :size="13" />
+          <span>Cast</span>
+        </button>
+
+        <button
+          class="detail-anchor-link font-mono"
+          :class="{ active: activeSection === 'details' }"
+          @click="scrollToSection('section-details')"
+        >
+          <Info :size="13" />
+          <span>Details</span>
+        </button>
+
+        <button
+          v-if="keywords.length"
+          class="detail-anchor-link font-mono"
+          :class="{ active: activeSection === 'keywords' }"
+          @click="scrollToSection('section-keywords')"
+        >
+          <Tag :size="13" />
+          <span>Keywords</span>
+        </button>
+
+        <button
+          v-if="itemMode === 'tv' && episodesList.length"
+          class="detail-anchor-link font-mono"
+          :class="{ active: activeSection === 'episodes' }"
+          @click="scrollToSection('section-episodes')"
+        >
+          <Tv :size="13" />
+          <span>Episodes</span>
+        </button>
+      </nav>
+
       <!-- Genres Row -->
       <div v-if="genres.length" class="genre-row">
         <span v-for="g in genres" :key="g" class="genre-chip font-mono">
@@ -743,22 +849,56 @@ const handleBack = () => {
         </span>
       </div>
 
-      <!-- Storyline / Overview -->
-      <section class="overview-box">
-        <h2 class="section-heading font-display">Overview</h2>
+      <!-- Storyline / Overview Section with Anchor -->
+      <section id="section-overview" class="overview-box detail-section-card" tabindex="0" role="region" aria-label="Storyline overview">
+        <div class="section-anchor-header">
+          <div class="anchor-header-title">
+            <BookOpen :size="14" class="section-icon" />
+            <h2 class="section-heading font-display">Overview</h2>
+          </div>
+          <button
+            v-if="cast.length"
+            class="section-jump-link font-mono"
+            title="Jump to Cast"
+            @click="scrollToSection('section-cast')"
+          >
+            <span>Cast</span>
+            <span class="jump-arrow">↓</span>
+          </button>
+        </div>
         <p class="overview-text">{{ storyline }}</p>
       </section>
 
-      <!-- Cast Section -->
-      <section class="cast-section">
-        <h2 class="section-heading font-display">
-          <Users :size="14" class="cast-heading-icon" /> Top Cast
-        </h2>
+      <!-- Cast Section with Anchor & D-Pad Focusable Cards -->
+      <section id="section-cast" class="cast-section detail-section-card">
+        <div class="section-anchor-header">
+          <div class="anchor-header-title">
+            <Users :size="14" class="cast-heading-icon" />
+            <h2 class="section-heading font-display">Top Cast</h2>
+          </div>
+          <button
+            class="section-jump-link font-mono"
+            title="Jump to Details"
+            @click="scrollToSection('section-details')"
+          >
+            <span>Details</span>
+            <span class="jump-arrow">↓</span>
+          </button>
+        </div>
         <div v-if="isLoadingCast && cast.length === 0" class="cast-scroll no-scrollbar">
           <div v-for="i in 6" :key="i" class="cast-card-skeleton skeleton"></div>
         </div>
         <div v-else-if="cast.length" class="cast-scroll no-scrollbar">
-          <div v-for="actor in cast" :key="actor.id" class="cast-card">
+          <button
+            v-for="actor in cast"
+            :key="actor.id"
+            class="cast-card"
+            tabindex="0"
+            role="button"
+            :title="`Search movies starring ${actor.name}`"
+            :aria-label="`Search movies starring ${actor.name}`"
+            @click="handleActorClick(actor)"
+          >
             <div class="cast-photo-wrap">
               <img
                 v-if="actor.profile_path"
@@ -770,66 +910,104 @@ const handleBack = () => {
               <div v-else class="cast-photo-placeholder font-mono">
                 {{ actor.name.slice(0, 2).toUpperCase() }}
               </div>
+              <div class="cast-search-overlay">
+                <Search :size="14" class="cast-search-icon" />
+              </div>
             </div>
             <div class="cast-info">
               <span class="cast-name">{{ actor.name }}</span>
               <span v-if="actor.character" class="cast-character">{{ actor.character }}</span>
             </div>
-          </div>
+          </button>
         </div>
         <p v-else class="text-xs text-muted">No cast information available.</p>
       </section>
 
-      <!-- Detailed Info Grid -->
-      <section class="info-grid">
-        <div v-if="directors.length" class="info-row">
-          <span class="info-label font-mono">Director</span>
-          <span class="info-value">{{ directors.join(', ') }}</span>
+      <!-- Detailed Info Grid with Anchor & D-Pad Focusable Rows -->
+      <section id="section-details" class="info-section detail-section-card">
+        <div class="section-anchor-header">
+          <div class="anchor-header-title">
+            <Info :size="14" class="section-icon" />
+            <h2 class="section-heading font-display">Media Details</h2>
+          </div>
+          <button
+            class="section-jump-link font-mono"
+            :title="keywords.length ? 'Jump to Keywords' : (itemMode === 'tv' ? 'Jump to Episodes' : 'Back to Top')"
+            @click="scrollToSection(keywords.length ? 'section-keywords' : (itemMode === 'tv' ? 'section-episodes' : 'section-overview'))"
+          >
+            <span>{{ keywords.length ? 'Keywords' : (itemMode === 'tv' ? 'Episodes' : 'Top') }}</span>
+            <span class="jump-arrow">{{ keywords.length || itemMode === 'tv' ? '↓' : '↑' }}</span>
+          </button>
         </div>
-        <div v-if="writers.length" class="info-row">
-          <span class="info-label font-mono">Writers</span>
-          <span class="info-value">{{ writers.join(', ') }}</span>
-        </div>
-        <div v-if="createdBy.length" class="info-row">
-          <span class="info-label font-mono">Creator</span>
-          <span class="info-value">{{ createdBy.join(', ') }}</span>
-        </div>
-        <div v-if="status" class="info-row">
-          <span class="info-label font-mono">Status</span>
-          <span class="info-value">{{ status }}</span>
-        </div>
-        <div v-if="language" class="info-row">
-          <span class="info-label font-mono">Language</span>
-          <span class="info-value">{{ language }}</span>
-        </div>
-        <div v-if="budget" class="info-row">
-          <span class="info-label font-mono">Budget</span>
-          <span class="info-value font-mono">{{ budget }}</span>
-        </div>
-        <div v-if="revenue" class="info-row">
-          <span class="info-label font-mono">Box Office</span>
-          <span class="info-value font-mono">{{ revenue }}</span>
-        </div>
-        <div v-if="networks.length" class="info-row">
-          <span class="info-label font-mono">Network</span>
-          <span class="info-value">{{ networks.join(', ') }}</span>
+        <div class="info-grid">
+          <div v-if="directors.length" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Director</span>
+            <span class="info-value">{{ directors.join(', ') }}</span>
+          </div>
+          <div v-if="writers.length" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Writers</span>
+            <span class="info-value">{{ writers.join(', ') }}</span>
+          </div>
+          <div v-if="createdBy.length" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Creator</span>
+            <span class="info-value">{{ createdBy.join(', ') }}</span>
+          </div>
+          <div v-if="status" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Status</span>
+            <span class="info-value">{{ status }}</span>
+          </div>
+          <div v-if="language" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Language</span>
+            <span class="info-value">{{ language }}</span>
+          </div>
+          <div v-if="budget" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Budget</span>
+            <span class="info-value font-mono">{{ budget }}</span>
+          </div>
+          <div v-if="revenue" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Box Office</span>
+            <span class="info-value font-mono">{{ revenue }}</span>
+          </div>
+          <div v-if="networks.length" class="info-row info-row-focusable" tabindex="0">
+            <span class="info-label font-mono">Network</span>
+            <span class="info-value">{{ networks.join(', ') }}</span>
+          </div>
         </div>
       </section>
 
-      <!-- Keywords Section -->
-      <section v-if="keywords.length" class="keyword-section">
-        <h2 class="section-heading font-display">
-          <Tag :size="13" /> Keywords
-        </h2>
+      <!-- Keywords Section with Anchor & D-Pad Focusable Chips -->
+      <section v-if="keywords.length" id="section-keywords" class="keyword-section detail-section-card">
+        <div class="section-anchor-header">
+          <div class="anchor-header-title">
+            <Tag :size="13" class="section-icon" />
+            <h2 class="section-heading font-display">Keywords</h2>
+          </div>
+          <button
+            class="section-jump-link font-mono"
+            :title="itemMode === 'tv' ? 'Jump to Episodes' : 'Back to Top'"
+            @click="scrollToSection(itemMode === 'tv' ? 'section-episodes' : 'section-overview')"
+          >
+            <span>{{ itemMode === 'tv' ? 'Episodes' : 'Top' }}</span>
+            <span class="jump-arrow">{{ itemMode === 'tv' ? '↓' : '↑' }}</span>
+          </button>
+        </div>
         <div class="keyword-row">
-          <span v-for="kw in keywords" :key="kw" class="keyword-chip font-mono">
-            #{{ kw }}
-          </span>
+          <button
+            v-for="kw in keywords"
+            :key="kw"
+            class="keyword-chip font-mono"
+            tabindex="0"
+            :title="`Search titles for #${kw}`"
+            @click="handleKeywordClick(kw)"
+          >
+            <Search :size="11" class="kw-search-icon" />
+            <span>#{{ kw }}</span>
+          </button>
         </div>
       </section>
 
-      <!-- TV Seasons & Episodes Guide Section (At the bottom of the page) -->
-      <section v-if="itemMode === 'tv'" class="episodes-section">
+      <!-- TV Seasons & Episodes Guide Section with Anchor (At the bottom of the page) -->
+      <section v-if="itemMode === 'tv'" id="section-episodes" class="episodes-section detail-section-card">
         <div class="episodes-section-header">
           <div class="episodes-header-left">
             <Tv :size="16" class="section-icon" />
@@ -838,6 +1016,12 @@ const handleBack = () => {
               {{ episodesList.length }} EPISODES
             </span>
           </div>
+
+          <!-- Quick Jump to Top -->
+          <button class="section-jump-link font-mono" title="Back to Top" @click="scrollToTop">
+            <span>Top</span>
+            <span class="jump-arrow">↑</span>
+          </button>
 
           <!-- Season Selector Tabs -->
           <div v-if="tvSeasons.length > 1" class="season-tabs-wrap no-scrollbar">
@@ -863,6 +1047,8 @@ const handleBack = () => {
             :key="ep.id"
             class="episode-card"
             :class="{ 'now-playing': isPlayingMedia && currentPlayingSeason === activeSeasonNumber && activeEpisodeNumber === ep.episode_number }"
+            tabindex="0"
+            role="button"
             @click="playEpisode(activeSeasonNumber, ep.episode_number)"
           >
             <!-- Lightweight Episode Badge / Play Action -->
@@ -914,6 +1100,14 @@ const handleBack = () => {
           <span>No episode information found for Season {{ activeSeasonNumber }}.</span>
         </div>
       </section>
+
+      <!-- Back to Top Footer Anchor -->
+      <div class="detail-bottom-anchor-wrap">
+        <button class="detail-back-to-top-btn font-mono" @click="scrollToTop">
+          <ArrowUp :size="15" />
+          <span>Back to Top</span>
+        </button>
+      </div>
     </div>
 
     <!-- YouTube Trailer Modal Overlay -->
@@ -929,6 +1123,7 @@ const handleBack = () => {
               :src="trailerUrl"
               title="Official Trailer"
               class="trailer-iframe"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
               allow="autoplay; encrypted-media; fullscreen"
               allowfullscreen
             ></iframe>
@@ -1675,13 +1870,42 @@ const handleBack = () => {
   flex-wrap: wrap;
 }
 .keyword-chip {
-  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
   font-weight: 500;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: var(--radius-full);
   background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.22);
+  border: 1px solid rgba(245, 158, 11, 0.24);
   color: var(--accent-amber);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.keyword-chip:hover {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.keyword-chip:active {
+  transform: scale(0.96);
+}
+
+.kw-search-icon {
+  opacity: 0.7;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.keyword-chip:hover .kw-search-icon {
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 /* Cast */
@@ -1711,22 +1935,55 @@ const handleBack = () => {
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
-  width: 72px;
-  cursor: default;
+  width: 76px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 2px;
+  outline: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 .cast-photo-wrap {
-  width: 64px;
-  height: 64px;
+  position: relative;
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid var(--border-subtle);
   background: var(--bg-card);
   flex-shrink: 0;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @media (hover: hover) and (pointer: fine) {
+  .cast-card:hover {
+    transform: translateY(-3px);
+  }
   .cast-card:hover .cast-photo-wrap {
     border-color: var(--accent-amber);
+    box-shadow: 0 4px 14px var(--accent-amber-glow);
   }
+  .cast-card:hover .cast-search-overlay {
+    opacity: 1;
+  }
+  .cast-card:hover .cast-name {
+    color: var(--accent-amber);
+  }
+}
+.cast-card:active {
+  transform: scale(0.95);
+}
+.cast-search-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  color: var(--accent-amber);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  backdrop-filter: blur(2px);
+  border-radius: 50%;
 }
 .cast-photo {
   width: 100%;
@@ -1830,5 +2087,125 @@ const handleBack = () => {
 .trailer-fade-enter-from,
 .trailer-fade-leave-to {
   opacity: 0;
+}
+
+/* ── Section Anchor Navigation Bar & Jump Links ────────────────────────────── */
+.detail-anchors-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 0 1.25rem 0;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 1.25rem;
+}
+
+.detail-anchor-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.05rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.detail-anchor-link:hover,
+.detail-anchor-link.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+}
+
+.section-anchor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.anchor-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-jump-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.32rem 0.7rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.section-jump-link:hover {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.jump-arrow {
+  color: #fbbf24;
+  font-size: 0.75rem;
+}
+
+.info-row-focusable {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  margin: -0.2rem -0.4rem;
+  transition: background 0.2s ease;
+}
+
+.info-row-focusable:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.detail-bottom-anchor-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 0 1.5rem 0;
+}
+
+.detail-back-to-top-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.6rem;
+  background: rgba(26, 26, 38, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.detail-back-to-top-btn:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #fbbf24;
 }
 </style>

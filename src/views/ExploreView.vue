@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { tvSpatialNav } from '../services/tvSpatialNav';
 import { MediaItem, MediaMode } from '../types';
 import { useApi } from '../composables/useApi';
 import { useHaptics } from '../composables/useHaptics';
@@ -49,6 +50,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', item: MediaItem): void;
+  (e: 'update:mode', mode: MediaMode): void;
 }>();
 
 const { getMediaList, getCollection } = useApi();
@@ -339,15 +341,41 @@ const loadMoreCategory = async () => {
     return;
   }
   triggerLight();
+
+  const activeEl = document.activeElement as HTMLElement | null;
+  const wasLoadMore = activeEl?.classList.contains('load-more-btn');
+  const focusedCardId = activeEl?.getAttribute('data-card-id');
+  const prevCount = categoryItems.value.length;
+
   isLoadingMoreCategory.value = true;
   try {
     const nextPage = categoryPage.value + 1;
     const res = await activeCategoryFetcher.value(nextPage);
     const newItems = res.results || [];
     if (newItems.length > 0) {
-      categoryItems.value.push(...newItems);
+      const existingIds = new Set(categoryItems.value.map((x) => x.id));
+      const uniqueResults = newItems.filter((x) => !existingIds.has(x.id));
+      if (uniqueResults.length > 0) {
+        categoryItems.value.push(...uniqueResults);
+      }
       categoryPage.value = nextPage;
       categoryTotalPages.value = res.total_pages || categoryTotalPages.value;
+    }
+    await nextTick();
+
+    if (wasLoadMore) {
+      const allCards = document.querySelectorAll<HTMLElement>('.movies-grid .movie-card');
+      if (allCards.length > prevCount && allCards[prevCount]) {
+        tvSpatialNav.focusElement(allCards[prevCount]);
+      } else {
+        const loadBtn = document.querySelector<HTMLElement>('.load-more-btn');
+        if (loadBtn) tvSpatialNav.focusElement(loadBtn);
+      }
+    } else if (focusedCardId) {
+      const targetCard = document.querySelector<HTMLElement>(`[data-card-id="${focusedCardId}"]`);
+      if (targetCard) {
+        tvSpatialNav.focusElement(targetCard);
+      }
     }
   } catch (err) {
     console.error('Error loading more category items:', err);
@@ -391,6 +419,20 @@ watch(() => props.mode, () => {
       loadCategoryData();
     }
   }
+});
+
+onMounted(() => {
+  const unregister = tvSpatialNav.registerBackHandler(() => {
+    if (activeCategoryTitle.value) {
+      goBackToBrowse();
+      return true;
+    }
+    return false;
+  });
+
+  onUnmounted(() => {
+    unregister();
+  });
 });
 </script>
 
@@ -445,24 +487,26 @@ watch(() => props.mode, () => {
           />
         </div>
 
-        <!-- Infinite Scroll Sentinel & Loading Indicator -->
+        <!-- Infinite Scroll Sentinel & Loading Indicator (Button stays permanently mounted) -->
         <div
           v-if="categoryPage < categoryTotalPages"
           ref="exploreSentinelRef"
           class="load-more-wrap"
         >
-          <div v-if="isLoadingMoreCategory" class="loading-indicator" :class="{ 'tv-theme': mode === 'tv' }">
-            <Loader2 :size="18" class="spin" />
-            <span>Loading more titles...</span>
-          </div>
           <button
-            v-else
             class="load-more-btn"
-            :class="{ 'tv-theme': mode === 'tv' }"
+            :class="{ 'tv-theme': mode === 'tv', 'is-loading': isLoadingMoreCategory }"
+            :aria-busy="isLoadingMoreCategory"
             @click="loadMoreCategory"
           >
-            <span>Load More</span>
-            <ChevronDown :size="16" />
+            <div v-if="isLoadingMoreCategory" class="loading-indicator-inline">
+              <Loader2 :size="18" class="spin" />
+              <span>Loading more titles...</span>
+            </div>
+            <div v-else class="load-more-content">
+              <span>Load More</span>
+              <ChevronDown :size="16" />
+            </div>
           </button>
         </div>
       </template>
@@ -477,6 +521,30 @@ watch(() => props.mode, () => {
 
     <!-- Main Browse Categories Grid -->
     <div v-else class="browse-sections">
+      <!-- Mode Switcher Pill Bar (Movies vs TV Series) -->
+      <div class="explore-mode-bar">
+        <button
+          type="button"
+          class="explore-mode-chip"
+          :class="{ active: mode === 'movie' }"
+          :aria-pressed="mode === 'movie'"
+          @click="emit('update:mode', 'movie')"
+        >
+          <Film :size="15" />
+          <span>Movies</span>
+        </button>
+        <button
+          type="button"
+          class="explore-mode-chip tv-theme"
+          :class="{ active: mode === 'tv' }"
+          :aria-pressed="mode === 'tv'"
+          @click="emit('update:mode', 'tv')"
+        >
+          <Tv :size="15" />
+          <span>TV Series</span>
+        </button>
+      </div>
+
       <!-- Quick Year Filter Pill Strip -->
       <section class="explore-section quick-years-section">
         <div class="section-header-row">
@@ -643,6 +711,49 @@ watch(() => props.mode, () => {
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
+}
+
+.explore-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.15rem 0;
+}
+
+.explore-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 1.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.explore-mode-chip:hover {
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.explore-mode-chip.active {
+  color: #0b0f19;
+  background: #f59e0b;
+  border-color: #f59e0b;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+}
+
+.explore-mode-chip.tv-theme.active {
+  background: #06b6d4;
+  border-color: #06b6d4;
+  color: #000000;
+  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.35);
 }
 
 .explore-section {
@@ -1055,9 +1166,18 @@ watch(() => props.mode, () => {
   border-color: var(--accent-rose);
 }
 
-.load-more-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
+.load-more-btn:disabled,
+.load-more-btn.is-loading {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.load-more-content,
+.loading-indicator-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .loading-indicator {

@@ -211,6 +211,7 @@ const handleClick = () => {
 <template>
   <div
     class="movie-card"
+    :data-card-id="item.id"
     tabindex="0"
     role="button"
     :aria-label="title"

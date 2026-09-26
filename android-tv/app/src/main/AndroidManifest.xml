@@ -27,7 +27,7 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:supportsPictureInPicture="true"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="landscape"
             android:banner="@drawable/tv_banner"
             android:exported="true">
 

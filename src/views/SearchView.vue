@@ -1,22 +1,47 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
-import { MediaItem, MediaMode } from '../types';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { tvSpatialNav } from '../services/tvSpatialNav';
+import { MediaItem, MediaMode, PersonSearchResult } from '../types';
 import { useApi } from '../composables/useApi';
 import { useHaptics } from '../composables/useHaptics';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
 import { useRecentSearches } from '../composables/useRecentSearches';
-import { Search, SearchX, X, TrendingUp, Clock, Trash2, ChevronDown, Loader2 } from 'lucide-vue-next';
+import {
+  Search,
+  SearchX,
+  X,
+  TrendingUp,
+  Clock,
+  Trash2,
+  ChevronDown,
+  Loader2,
+  Layers,
+  Film,
+  Tv,
+  Sparkles,
+  Users
+} from 'lucide-vue-next';
 import MovieCard from '../components/MovieCard.vue';
 
-const props = defineProps<{
-  mode: MediaMode;
-}>();
+export type SearchCategory = 'multi' | 'movie' | 'tv';
+
+const props = withDefaults(
+  defineProps<{
+    mode: MediaMode;
+    initialQuery?: string;
+    initialActor?: PersonSearchResult | null;
+  }>(),
+  {
+    initialQuery: '',
+    initialActor: null
+  }
+);
 
 const emit = defineEmits<{
   (e: 'select', item: MediaItem): void;
 }>();
 
-const { searchMedia, getTrendingSearches } = useApi();
+const { searchMedia, getTrendingSearches, searchPerson, getActorCredits, getImageUrl } = useApi();
 const { triggerLight } = useHaptics();
 const { recent, push: pushRecent, remove: removeRecent, clear: clearRecent } = useRecentSearches();
 
@@ -27,7 +52,40 @@ const hasSearched = ref(false);
 const searchPage = ref(1);
 const searchTotalPages = ref(1);
 const isLoadingMoreSearch = ref(false);
+const activeCategory = ref<SearchCategory>('multi');
+const activeActor = ref<PersonSearchResult | null>(null);
+const actorAllCredits = ref<MediaItem[]>([]);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const searchCategories = [
+  { key: 'multi' as const, label: 'All', icon: Layers },
+  { key: 'movie' as const, label: 'Movies', icon: Film },
+  { key: 'tv' as const, label: 'TV Shows', icon: Tv }
+];
+
+const filterCreditsByCategory = (credits: MediaItem[], cat: SearchCategory) => {
+  if (cat === 'movie') return credits.filter((m) => m.media_type === 'movie' || (!m.first_air_date && m.title));
+  if (cat === 'tv') return credits.filter((m) => m.media_type === 'tv' || Boolean(m.first_air_date || m.name));
+  return credits;
+};
+
+const movieCount = computed(() => {
+  const source = activeActor.value && actorAllCredits.value.length > 0
+    ? actorAllCredits.value
+    : searchResults.value;
+  return source.filter((item) => {
+    return item.media_type === 'movie' || (!item.first_air_date && !item.name);
+  }).length;
+});
+
+const tvCount = computed(() => {
+  const source = activeActor.value && actorAllCredits.value.length > 0
+    ? actorAllCredits.value
+    : searchResults.value;
+  return source.filter((item) => {
+    return item.media_type === 'tv' || Boolean(item.first_air_date || item.name);
+  }).length;
+});
 
 // Live trending searches — populated on mount from TMDB/IMDB source
 const suggestions = ref<string[]>([]);
@@ -37,6 +95,8 @@ const performSearch = async (query: string, page = 1) => {
   const trimmed = query.trim();
   if (trimmed.length < 2) {
     searchResults.value = [];
+    activeActor.value = null;
+    actorAllCredits.value = [];
     hasSearched.value = false;
     isSearching.value = false;
     searchPage.value = 1;
@@ -53,17 +113,71 @@ const performSearch = async (query: string, page = 1) => {
   hasSearched.value = true;
 
   try {
-    const res = await searchMedia(trimmed, props.mode, page);
-    const filtered = (res.results || []).filter((item) => item.media_type !== 'person');
     if (page === 1) {
-      searchResults.value = filtered;
-      // Save to recent only when we get at least 1 result
-      if (filtered.length > 0) pushRecent(trimmed);
+      // 1. Parallel lookup for actor and media
+      const [personRes, mediaRes] = await Promise.all([
+        searchPerson(trimmed),
+        searchMedia(trimmed, activeCategory.value, 1)
+      ]);
+
+      const normalize = (str: string) =>
+        str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+      const cleanQuery = normalize(trimmed);
+      const personName = personRes ? normalize(personRes.name) : '';
+
+      // Check if person is a confident match
+      const isPersonMatch = Boolean(
+        personRes && (
+          personName === cleanQuery ||
+          personName.includes(cleanQuery) ||
+          cleanQuery.includes(personName) ||
+          ((personRes.popularity || 0) >= 1.5 && cleanQuery.split(/\s+/).length >= 2)
+        )
+      );
+
+      if (isPersonMatch && personRes) {
+        activeActor.value = personRes;
+        const credits = await getActorCredits(personRes.id);
+        actorAllCredits.value = credits;
+        const filtered = filterCreditsByCategory(credits, activeCategory.value);
+        searchResults.value = filtered.slice(0, 20);
+        searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
+        pushRecent(personRes.name);
+      } else {
+        activeActor.value = null;
+        actorAllCredits.value = [];
+        const filtered = (mediaRes.results || []).filter((item) => item.media_type !== 'person');
+        searchResults.value = filtered;
+        searchTotalPages.value = mediaRes.total_pages || 1;
+        if (filtered.length > 0) pushRecent(trimmed);
+      }
+      searchPage.value = 1;
     } else {
-      searchResults.value.push(...filtered);
+      // Pagination for page > 1
+      if (activeActor.value && actorAllCredits.value.length > 0) {
+        const filtered = filterCreditsByCategory(actorAllCredits.value, activeCategory.value);
+        const start = (page - 1) * 20;
+        const nextBatch = filtered.slice(start, start + 20);
+        const existingIds = new Set(searchResults.value.map((x) => `${x.media_type}-${x.id}`));
+        const unique = nextBatch.filter((x) => !existingIds.has(`${x.media_type}-${x.id}`));
+        if (unique.length > 0) {
+          searchResults.value.push(...unique);
+        }
+        searchPage.value = page;
+        searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
+      } else {
+        const res = await searchMedia(trimmed, activeCategory.value, page);
+        const filtered = (res.results || []).filter((item) => item.media_type !== 'person');
+        const existingIds = new Set(searchResults.value.map((x) => x.id));
+        const uniqueResults = filtered.filter((x) => !existingIds.has(x.id));
+        if (uniqueResults.length > 0) {
+          searchResults.value.push(...uniqueResults);
+        }
+        searchPage.value = page;
+        searchTotalPages.value = res.total_pages || 1;
+      }
     }
-    searchPage.value = page;
-    searchTotalPages.value = res.total_pages || 1;
   } catch (err) {
     console.error('Search error:', err);
     if (page === 1) searchResults.value = [];
@@ -73,12 +187,50 @@ const performSearch = async (query: string, page = 1) => {
   }
 };
 
+const handleSelectCategory = (cat: SearchCategory) => {
+  if (activeCategory.value === cat) return;
+  triggerLight();
+  activeCategory.value = cat;
+  if (searchQuery.value.trim().length >= 2) {
+    if (activeActor.value && actorAllCredits.value.length > 0) {
+      const filtered = filterCreditsByCategory(actorAllCredits.value, cat);
+      searchResults.value = filtered.slice(0, 20);
+      searchPage.value = 1;
+      searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
+    } else {
+      performSearch(searchQuery.value, 1);
+    }
+  }
+};
+
 const loadMoreSearch = async () => {
   if (isSearching.value || isLoadingMoreSearch.value || searchPage.value >= searchTotalPages.value) {
     return;
   }
   triggerLight();
+
+  const activeEl = document.activeElement as HTMLElement | null;
+  const wasLoadMore = activeEl?.classList.contains('load-more-btn');
+  const focusedCardId = activeEl?.getAttribute('data-card-id');
+  const prevCount = searchResults.value.length;
+
   await performSearch(searchQuery.value, searchPage.value + 1);
+  await nextTick();
+
+  if (wasLoadMore) {
+    const allCards = document.querySelectorAll<HTMLElement>('.movies-grid .movie-card');
+    if (allCards.length > prevCount && allCards[prevCount]) {
+      tvSpatialNav.focusElement(allCards[prevCount]);
+    } else {
+      const loadBtn = document.querySelector<HTMLElement>('.load-more-btn');
+      if (loadBtn) tvSpatialNav.focusElement(loadBtn);
+    }
+  } else if (focusedCardId) {
+    const targetCard = document.querySelector<HTMLElement>(`[data-card-id="${focusedCardId}"]`);
+    if (targetCard) {
+      tvSpatialNav.focusElement(targetCard);
+    }
+  }
 };
 
 const { sentinelRef: searchSentinelRef } = useInfiniteScroll(
@@ -103,6 +255,8 @@ const clearSearch = () => {
   triggerLight();
   searchQuery.value = '';
   searchResults.value = [];
+  activeActor.value = null;
+  actorAllCredits.value = [];
   hasSearched.value = false;
   searchPage.value = 1;
   searchTotalPages.value = 1;
@@ -130,7 +284,43 @@ const handleClearRecent = () => {
   clearRecent();
 };
 
+const searchActorDirectly = async (actor: PersonSearchResult) => {
+  activeActor.value = actor;
+  searchQuery.value = actor.name;
+  isSearching.value = true;
+  hasSearched.value = true;
+  searchPage.value = 1;
+  try {
+    const credits = await getActorCredits(actor.id);
+    actorAllCredits.value = credits;
+    const filtered = filterCreditsByCategory(credits, activeCategory.value);
+    searchResults.value = filtered.slice(0, 20);
+    searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
+    pushRecent(actor.name);
+  } catch (err) {
+    console.error('Failed to load actor filmography:', err);
+    searchResults.value = [];
+  } finally {
+    isSearching.value = false;
+  }
+};
+
+const clearActorSpotlight = () => {
+  triggerLight();
+  activeActor.value = null;
+  actorAllCredits.value = [];
+  if (searchQuery.value.trim().length >= 2) {
+    performSearch(searchQuery.value, 1);
+  }
+};
+
 onMounted(async () => {
+  if (props.initialActor) {
+    searchActorDirectly(props.initialActor);
+  } else if (props.initialQuery && props.initialQuery.trim()) {
+    searchQuery.value = props.initialQuery.trim();
+    performSearch(props.initialQuery.trim(), 1);
+  }
   isLoadingTrending.value = true;
   try {
     suggestions.value = await getTrendingSearches();
@@ -142,10 +332,20 @@ onMounted(async () => {
 });
 
 watch(
-  () => props.mode,
-  () => {
-    if (searchQuery.value.trim().length >= 2) {
-      performSearch(searchQuery.value);
+  () => props.initialActor,
+  (newActor) => {
+    if (newActor) {
+      searchActorDirectly(newActor);
+    }
+  }
+);
+
+watch(
+  () => props.initialQuery,
+  (newQ) => {
+    if (newQ && newQ.trim() && !props.initialActor) {
+      searchQuery.value = newQ.trim();
+      performSearch(newQ.trim(), 1);
     }
   }
 );
@@ -161,7 +361,7 @@ watch(
         <input
           v-model="searchQuery"
           type="text"
-          :placeholder="mode === 'movie' ? 'Search movies by title, actor...' : 'Search TV shows, series...'"
+          placeholder="Search movies, TV shows, anime, titles..."
           class="search-input"
           @input="handleInput"
         />
@@ -173,6 +373,33 @@ watch(
           @click="clearSearch"
         >
           <X :size="16" stroke-width="2.5" />
+        </button>
+      </div>
+
+      <!-- Category Filter Pills (All / Movies / TV Shows) -->
+      <div class="search-category-bar no-scrollbar">
+        <button
+          v-for="cat in searchCategories"
+          :key="cat.key"
+          type="button"
+          class="search-cat-chip"
+          :class="{
+            active: activeCategory === cat.key,
+            'cat-multi': cat.key === 'multi',
+            'cat-movie': cat.key === 'movie',
+            'cat-tv': cat.key === 'tv'
+          }"
+          :aria-pressed="activeCategory === cat.key"
+          @click="handleSelectCategory(cat.key)"
+        >
+          <component :is="cat.icon" :size="14" class="cat-chip-icon" />
+          <span>{{ cat.label }}</span>
+          <span
+            v-if="hasSearched && !isSearching && searchResults.length > 0 && activeCategory === 'multi'"
+            class="cat-chip-badge"
+          >
+            {{ cat.key === 'multi' ? searchResults.length : cat.key === 'movie' ? movieCount : tvCount }}
+          </span>
         </button>
       </div>
     </div>
@@ -241,11 +468,53 @@ watch(
 
     <!-- Results Section -->
     <div v-else class="results-section">
+      <!-- Actor Spotlight Banner (When search query matches an actor) -->
+      <div v-if="activeActor" class="actor-spotlight-card">
+        <div class="actor-avatar-wrap">
+          <img
+            v-if="activeActor.profile_path"
+            :src="getImageUrl(activeActor.profile_path, 'w185')"
+            :alt="activeActor.name"
+            class="actor-avatar-img"
+          />
+          <div v-else class="actor-avatar-placeholder font-mono">
+            {{ activeActor.name.slice(0, 2).toUpperCase() }}
+          </div>
+          <div class="actor-badge-star">
+            <Sparkles :size="12" />
+          </div>
+        </div>
+        <div class="actor-details">
+          <div class="actor-tag-pill font-mono">
+            <Users :size="11" />
+            <span>Actor Filmography</span>
+          </div>
+          <h2 class="actor-name font-display">{{ activeActor.name }}</h2>
+          <p class="actor-summary">
+            Starring in {{ movieCount }} movies and {{ tvCount }} TV series
+          </p>
+        </div>
+        <button
+          type="button"
+          class="actor-spotlight-close"
+          title="Clear actor filter"
+          @click="clearActorSpotlight"
+        >
+          <X :size="16" />
+        </button>
+      </div>
+
       <div class="results-meta">
-        <span v-if="!isSearching" class="results-count font-mono">
-          Found {{ searchResults.length }} result{{ searchResults.length === 1 ? '' : 's' }}
-        </span>
-        <span v-else class="results-count font-mono">Searching...</span>
+        <div v-if="!isSearching" class="results-meta-left font-mono">
+          <span class="results-count">
+            {{ activeActor ? `Filmography (${searchResults.length} titles)` : `Found ${searchResults.length} result${searchResults.length === 1 ? '' : 's'}` }}
+          </span>
+          <span v-if="activeCategory === 'multi' && searchResults.length > 0" class="results-breakdown">
+            <span class="breakdown-tag movie">🎬 {{ movieCount }} Movies</span>
+            <span class="breakdown-tag tv">📺 {{ tvCount }} TV Shows</span>
+          </span>
+        </div>
+        <span v-else class="results-count font-mono">{{ activeActor ? `Loading ${activeActor.name}'s movies...` : 'Searching titles...' }}</span>
       </div>
 
       <!-- Loading skeleton -->
@@ -258,31 +527,33 @@ watch(
         <div class="movies-grid">
           <MovieCard
             v-for="item in searchResults"
-            :key="item.id"
+            :key="`${item.media_type || 'm'}-${item.id}`"
             :item="item"
-            :mode="mode"
+            :mode="(item.media_type as MediaMode) || (item.name ? 'tv' : 'movie')"
             @select="emit('select', $event)"
           />
         </div>
 
-        <!-- Infinite Scroll Sentinel & Loading Indicator -->
+        <!-- Infinite Scroll Sentinel & Loading Indicator (Button stays permanently mounted) -->
         <div
           v-if="searchPage < searchTotalPages"
           ref="searchSentinelRef"
           class="load-more-wrap"
         >
-          <div v-if="isLoadingMoreSearch" class="loading-indicator" :class="{ 'tv-theme': mode === 'tv' }">
-            <Loader2 :size="18" class="spin" />
-            <span>Loading more results...</span>
-          </div>
           <button
-            v-else
             class="load-more-btn"
-            :class="{ 'tv-theme': mode === 'tv' }"
+            :class="{ 'tv-theme': activeCategory === 'tv', 'is-loading': isLoadingMoreSearch }"
+            :aria-busy="isLoadingMoreSearch"
             @click="loadMoreSearch"
           >
-            <span>Load More</span>
-            <ChevronDown :size="16" />
+            <div v-if="isLoadingMoreSearch" class="loading-indicator-inline">
+              <Loader2 :size="18" class="spin" />
+              <span>Loading more results...</span>
+            </div>
+            <div v-else class="load-more-content">
+              <span>Load More</span>
+              <ChevronDown :size="16" />
+            </div>
           </button>
         </div>
       </template>
@@ -329,11 +600,80 @@ watch(
     max-width: 640px;
     margin: 0 auto;
   }
+  .search-category-bar {
+    max-width: 640px;
+    margin: 0.65rem auto 0;
+  }
   .suggestions-section {
     max-width: 640px;
     margin: 0 auto;
     width: 100%;
   }
+}
+
+.search-category-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 4px;
+}
+
+.search-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.search-cat-chip:hover {
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.search-cat-chip.active {
+  color: #0b0f19;
+  background: #f59e0b;
+  border-color: #f59e0b;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+}
+
+.search-cat-chip.active.cat-tv {
+  background: #f43f5e;
+  border-color: #f43f5e;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(244, 63, 94, 0.35);
+}
+
+.cat-chip-icon {
+  flex-shrink: 0;
+}
+
+.cat-chip-badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.search-cat-chip.active.cat-tv .cat-chip-badge {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .search-field {
@@ -508,6 +848,118 @@ watch(
 .tag-skeleton:nth-child(2n) { width: 70px; }
 .tag-skeleton:nth-child(3n) { width: 110px; }
 
+/* Actor Spotlight Banner */
+.actor-spotlight-card {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.35rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(14, 14, 21, 0.92) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.actor-avatar-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.actor-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 2px solid var(--accent-amber);
+}
+
+.actor-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--bg-surface-elevated);
+  border: 2px solid var(--accent-amber);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent-amber);
+}
+
+.actor-badge-star {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  color: #07070a;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.6);
+}
+
+.actor-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.actor-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent-amber);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.actor-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.actor-summary {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.actor-spotlight-close {
+  margin-left: auto;
+  align-self: flex-start;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.actor-spotlight-close:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 /* Results */
 .results-section {
   display: flex;
@@ -519,11 +971,45 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.results-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .results-count {
   font-size: 0.72rem;
   color: var(--text-muted);
+}
+
+.results-breakdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+}
+
+.breakdown-tag {
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  font-weight: 500;
+}
+
+.breakdown-tag.movie {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.breakdown-tag.tv {
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.3);
 }
 
 .movies-grid {
@@ -616,6 +1102,20 @@ watch(
 
 .load-more-btn.tv-theme:hover {
   border-color: var(--accent-rose);
+}
+
+.load-more-btn:disabled,
+.load-more-btn.is-loading {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.load-more-content,
+.loading-indicator-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .loading-indicator {

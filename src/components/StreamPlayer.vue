@@ -30,6 +30,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { MediaItem, MediaMode, TVSeason, TVEpisode } from '../types';
 import { useApi } from '../composables/useApi';
 import { useHaptics } from '../composables/useHaptics';
+import { useTvMode } from '../composables/useTvMode';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { StatusBar } from '@capacitor/status-bar';
 import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
@@ -64,6 +65,7 @@ const props = withDefaults(
 
 const { getImageUrl, getTvDetails, getSeasonDetails, getMediaImages, getMediaVideos, probeStreamServers } = useApi();
 const { triggerLight, triggerMedium } = useHaptics();
+const { isTvMode } = useTvMode();
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -775,15 +777,17 @@ const startPlaying = async (fullscreen = true) => {
 const enterFullscreen = async () => {
   isFullscreen.value = true;
 
-  // 1. Lock device orientation to landscape
-  try {
-    await ScreenOrientation.lock({ orientation: 'landscape' });
-  } catch {
+  // 1. Lock device orientation to landscape (skip on TV)
+  if (!isTvMode.value) {
     try {
-      if (screen.orientation && (screen.orientation as any).lock) {
-        await (screen.orientation as any).lock('landscape');
-      }
-    } catch {}
+      await ScreenOrientation.lock({ orientation: 'landscape' });
+    } catch {
+      try {
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock('landscape');
+        }
+      } catch {}
+    }
   }
 
   // 2. Hide status bar and navigation bar for true immersive full screen
@@ -821,15 +825,17 @@ const stopAndClose = async () => {
   // Hide the fullscreen overlay first (instant)
   isFullscreen.value = false;
 
-  // 1. Restore device orientation back to portrait
-  try {
-    await ScreenOrientation.lock({ orientation: 'portrait' });
-  } catch {
+  // 1. Restore device orientation back to portrait (skip on TV)
+  if (!isTvMode.value) {
     try {
-      if (screen.orientation && (screen.orientation as any).lock) {
-        await (screen.orientation as any).lock('portrait');
-      }
-    } catch {}
+      await ScreenOrientation.lock({ orientation: 'portrait' });
+    } catch {
+      try {
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock('portrait');
+        }
+      } catch {}
+    }
   }
 
   // 2. Maintain permanent fullscreen (keep status bar and navigation bar hidden)
@@ -853,31 +859,33 @@ const stopAndClose = async () => {
   } catch {}
 
   // 4. Wait for the orientation/viewport to actually return to portrait (height >= width)
-  //    before swapping the DOM back to placeholder and emitting close.
+  //    before swapping the DOM back to placeholder and emitting close (mobile only).
   //    This prevents the main page underneath from suffering layout shift or visual snap.
-  await new Promise<void>((resolve) => {
-    if (window.innerHeight >= window.innerWidth) {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      return;
-    }
-    let resolved = false;
-    const finish = () => {
-      if (!resolved) {
-        resolved = true;
-        window.removeEventListener('resize', onResize);
-        window.removeEventListener('orientationchange', onResize);
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      }
-    };
-    const onResize = () => {
+  if (!isTvMode.value) {
+    await new Promise<void>((resolve) => {
       if (window.innerHeight >= window.innerWidth) {
-        finish();
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        return;
       }
-    };
-    window.addEventListener('resize', onResize, { passive: true });
-    window.addEventListener('orientationchange', onResize, { passive: true });
-    setTimeout(finish, 260);
-  });
+      let resolved = false;
+      const finish = () => {
+        if (!resolved) {
+          resolved = true;
+          window.removeEventListener('resize', onResize);
+          window.removeEventListener('orientationchange', onResize);
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }
+      };
+      const onResize = () => {
+        if (window.innerHeight >= window.innerWidth) {
+          finish();
+        }
+      };
+      window.addEventListener('resize', onResize, { passive: true });
+      window.addEventListener('orientationchange', onResize, { passive: true });
+      setTimeout(finish, 260);
+    });
+  }
 
   if (fallbackNoticeTimer) clearTimeout(fallbackNoticeTimer);
   isPlaying.value = false;
@@ -1090,10 +1098,12 @@ onUnmounted(async () => {
     } catch {}
   }
 
-  // Guarantee portrait mode and keep fullscreen when player unmounts
-  try {
-    await ScreenOrientation.lock({ orientation: 'portrait' });
-  } catch {}
+  // Guarantee portrait mode and keep fullscreen when player unmounts (mobile only)
+  if (!isTvMode.value) {
+    try {
+      await ScreenOrientation.lock({ orientation: 'portrait' });
+    } catch {}
+  }
   try {
     await StatusBar.hide();
   } catch {}
@@ -1379,8 +1389,8 @@ watch([currentSeason, currentEpisode], () => {
     <Teleport to="body">
       <div
         v-if="isFullscreen && isPlaying"
-        class="fullscreen-theater-overlay force-landscape"
-        :class="{ 'in-pip-mode': isInPipMode, 'controls-hidden': !showControls }"
+        class="fullscreen-theater-overlay"
+        :class="{ 'force-landscape': !isTvMode, 'in-pip-mode': isInPipMode, 'controls-hidden': !showControls }"
         @pointermove="handleUserActivity"
         @touchstart.passive="handleUserActivity"
       >
@@ -1577,6 +1587,7 @@ watch([currentSeason, currentEpisode], () => {
               v-if="showTrailer"
               :src="trailerUrl"
               class="trailer-iframe"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
               allow="autoplay; encrypted-media; fullscreen"
               allowfullscreen
               frameborder="0"

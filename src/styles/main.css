@@ -38,9 +38,9 @@
   --header-height: 60px;
 }
 
-html.is-native-app,
-:root.is-native-app {
-  --safe-top: env(safe-area-inset-top, 0px);
+html.is-native-app:not(.is-tv-mode),
+:root.is-native-app:not(.is-tv-mode) {
+  --safe-top: max(env(safe-area-inset-top, 0px), 36px);
 }
 
 * {

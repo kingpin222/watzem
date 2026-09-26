@@ -9,10 +9,14 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Rational;
+import android.os.SystemClock;
+import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.WebSettings;
@@ -74,6 +78,17 @@ public class MainActivity extends BridgeActivity {
                 result.cancel();
             }
             return true;
+        }
+
+        @Override
+        public void onCloseWindow(WebView window) {
+            // Block window.close() calls from stream/trailer iframes so the TV activity never exits
+        }
+
+        @Override
+        public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, android.os.Message resultMsg) {
+            // Block popup / window.open calls from third-party players
+            return false;
         }
     }
 
@@ -145,9 +160,9 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AppInstallerPlugin.class);
         super.onCreate(savedInstanceState);
 
-        // Lock to landscape for TV display
+        // Lock to landscape for TV display (fixed, no sensor rotation)
         try {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         } catch (Exception ignored) {}
 
         hideSystemBars();
@@ -156,16 +171,25 @@ public class MainActivity extends BridgeActivity {
             WebView.setWebContentsDebuggingEnabled(true);
             WebView webView = this.getBridge().getWebView();
             if (webView != null) {
+                // Prevent Chromium in-process GPU crashes (ui/gl/gl_version_info.cc ES 3.1 EGL_BAD_CONFIG)
+                // on Android TV devices and emulators that only support OpenGL ES 2.0/3.0
+                webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+
                 WebSettings settings = webView.getSettings();
                 settings.setMediaPlaybackRequiresUserGesture(false);
                 settings.setJavaScriptCanOpenWindowsAutomatically(false);
                 settings.setSupportMultipleWindows(false);
                 settings.setTextZoom(100);
+                settings.setDomStorageEnabled(true);
+                settings.setDatabaseEnabled(true);
 
                 // Enable D-pad and TV remote navigation focus
                 webView.setFocusable(true);
                 webView.setFocusableInTouchMode(true);
                 webView.requestFocus();
+
+                // Expose hardware touch simulation bridge for TV remotes on embedded players
+                webView.addJavascriptInterface(new TvNativeBridge(), "TvNativeBridge");
 
                 webView.setWebChromeClient(new CustomWebChromeClient(this.getBridge()));
 
@@ -184,6 +208,55 @@ public class MainActivity extends BridgeActivity {
         } catch (Exception ignored) {}
     }
 
+    public class TvNativeBridge {
+        @JavascriptInterface
+        public void clickCenter() {
+            simulateTouchClick(0.5f, 0.5f);
+        }
+
+        @JavascriptInterface
+        public void clickAt(final float relX, final float relY) {
+            simulateTouchClick(relX, relY);
+        }
+    }
+
+    public void simulateTouchClick(final float relX, final float relY) {
+        runOnUiThread(() -> {
+            try {
+                if (getBridge() == null) return;
+                WebView webView = getBridge().getWebView();
+                if (webView == null) return;
+
+                int width = webView.getWidth();
+                int height = webView.getHeight();
+                if (width <= 0 || height <= 0) return;
+
+                float x = width * Math.max(0.01f, Math.min(0.99f, relX));
+                float y = height * Math.max(0.01f, Math.min(0.99f, relY));
+
+                long downTime = SystemClock.uptimeMillis();
+                MotionEvent eventDown = MotionEvent.obtain(
+                    downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0
+                );
+                eventDown.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+                webView.dispatchTouchEvent(eventDown);
+                eventDown.recycle();
+
+                webView.postDelayed(() -> {
+                    try {
+                        long upTime = SystemClock.uptimeMillis();
+                        MotionEvent eventUp = MotionEvent.obtain(
+                            downTime, upTime, MotionEvent.ACTION_UP, x, y, 0
+                        );
+                        eventUp.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+                        webView.dispatchTouchEvent(eventUp);
+                        eventUp.recycle();
+                    } catch (Exception ignored) {}
+                }, 50);
+            } catch (Exception ignored) {}
+        });
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (this.getBridge() != null) {
@@ -192,6 +265,22 @@ public class MainActivity extends BridgeActivity {
                 webView.requestFocus();
             }
         }
+
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                if (this.getBridge() != null) {
+                    WebView webView = this.getBridge().getWebView();
+                    if (webView != null) {
+                        webView.evaluateJavascript(
+                            "(function() { return window.__WATZEM_TV_HANDLE_CENTER__ ? window.__WATZEM_TV_HANDLE_CENTER__() : false; })()",
+                            null
+                        );
+                    }
+                }
+            }
+        }
+
         return super.dispatchKeyEvent(event);
     }
 
@@ -378,26 +467,22 @@ public class MainActivity extends BridgeActivity {
             String host = url.getHost();
 
             if (host != null && (host.equals("youtube.com") || host.endsWith(".youtube.com") || host.equals("youtu.be"))) {
-                String path = url.getPath();
-                if (path != null && (path.startsWith("/watch") || (host.equals("youtu.be") && path.length() > 1))) {
-                    try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, url);
-                        getContext().startActivity(intent);
-                        return Boolean.TRUE;
-                    } catch (Exception ignored) {}
-                }
+                // On Android TV, never launch external intent when watching trailer or playing embedded YouTube.
+                // Keep it strictly contained inside the app's player modal.
+                return Boolean.TRUE;
             }
 
             if ("data".equalsIgnoreCase(scheme) || "blob".equalsIgnoreCase(scheme)) {
                 return Boolean.FALSE;
             }
 
+            // Top-level navigation must ONLY be permitted for localhost, 127.0.0.1, and watzem.online.
+            // Under NO circumstances allow third-party stream servers (or ad scripts) to navigate
+            // the main app WebView away from the Watzem SPA!
             if (host != null) {
                 host = host.toLowerCase();
-                for (String allowed : ALLOWED_HOSTS) {
-                    if (host.equals(allowed) || host.endsWith("." + allowed)) {
-                        return Boolean.FALSE;
-                    }
+                if (host.equals("localhost") || host.equals("127.0.0.1") || host.endsWith(".watzem.online") || host.equals("watzem.online")) {
+                    return Boolean.FALSE;
                 }
             }
 

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { SplashScreen as CapSplashScreen } from '@capacitor/splash-screen';
-import { MediaItem, MediaMode, TabKey } from './types';
+import { MediaItem, MediaMode, TabKey, PersonSearchResult } from './types';
 import TopHeader from './components/TopHeader.vue';
 import BottomNav from './components/BottomNav.vue';
 import MovieDetailView from './views/MovieDetailView.vue';
@@ -98,6 +98,41 @@ const closeDetail = () => {
   }, 20);
 };
 
+const keywordSearchQuery = ref('');
+const initialSearchActor = ref<PersonSearchResult | null>(null);
+
+const handleSearchFromDetail = (keyword: string) => {
+  if (currentTab.value === 'details') {
+    previousTab.value = 'home';
+  }
+  selectedItem.value = null;
+  initialPlayState.value = false;
+  initialSearchActor.value = null;
+  keywordSearchQuery.value = keyword;
+  currentTab.value = 'search';
+  scrollToTop();
+  requestAnimationFrame(scrollToTop);
+};
+
+const handleActorSearchFromDetail = (actor: { id: number; name: string; profile_path: string | null }) => {
+  if (currentTab.value === 'details') {
+    previousTab.value = 'home';
+  }
+  selectedItem.value = null;
+  initialPlayState.value = false;
+  initialSearchActor.value = {
+    id: actor.id,
+    name: actor.name,
+    profile_path: actor.profile_path,
+    known_for_department: 'Acting',
+    popularity: 10
+  };
+  keywordSearchQuery.value = actor.name;
+  currentTab.value = 'search';
+  scrollToTop();
+  requestAnimationFrame(scrollToTop);
+};
+
 const handleAfterEnter = () => {
   if (currentTab.value === 'details') {
     scrollToTop();
@@ -146,6 +181,10 @@ const handleNavigate = (tab: TabKey) => {
   } else {
     savedScrollPositions.value[currentTab.value] =
       window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  }
+  if (tab !== 'search') {
+    keywordSearchQuery.value = '';
+    initialSearchActor.value = null;
   }
   currentTab.value = tab;
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -214,7 +253,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="app-container" :class="{ 'is-download-mode': currentTab === 'download' }">
+  <div class="app-container" :class="{ 'is-download-mode': currentTab === 'download', 'is-details-mode': currentTab === 'details' }">
     <!-- Animated Splash Screen with Movie Tiles Matrix (Only for standard web/app navigation) -->
     <Transition name="splash-fade">
       <SplashScreen
@@ -255,9 +294,9 @@ onMounted(() => {
     <!-- Creator Support & Community Tips Modal -->
     <SupportModal />
 
-    <!-- Android TV Left Sidebar Navigation (Only visible in Android TV mode) -->
+    <!-- Android TV Left Sidebar Navigation (Only visible in Android TV mode on main tabs) -->
     <TvSidebar
-      v-if="isTvMode && currentTab !== 'download'"
+      v-if="isTvMode && currentTab !== 'download' && currentTab !== 'details'"
       :current-tab="currentTab"
       :mode="currentMode"
       @navigate="handleNavigate"
@@ -290,11 +329,16 @@ onMounted(() => {
             :mode="currentTab === 'details' ? selectedItemMode : currentMode"
             :item="selectedItem"
             :initial-play="initialPlayState"
+            :initial-query="currentTab === 'search' ? keywordSearchQuery : ''"
+            :initial-actor="currentTab === 'search' ? initialSearchActor : null"
             @select="openDetail($event, false)"
             @play="openDetail($event, false)"
             @explore="handleNavigate('home')"
+            @update:mode="currentMode = $event"
             @back="closeDetail"
             @close="closeDetail"
+            @search="handleSearchFromDetail"
+            @search-actor="handleActorSearchFromDetail"
           />
         </KeepAlive>
       </Transition>

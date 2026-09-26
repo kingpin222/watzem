@@ -7,7 +7,8 @@ import {
   Search, 
   Bookmark, 
   HelpCircle,
-  Clock
+  Clock,
+  Compass
 } from 'lucide-vue-next';
 import { MediaMode, TabKey } from '../../types';
 import WatzemLogo from '../WatzemLogo.vue';
@@ -100,7 +101,22 @@ const handleItemClick = (tab: TabKey, targetMode?: MediaMode) => {
         <div class="active-indicator" v-if="currentTab === 'home' && mode === 'movie'"></div>
       </button>
 
-      <!-- 3. Movies -->
+      <!-- 3. Explore (Categories, Networks, Franchises, Eras) -->
+      <button
+        class="tv-nav-item"
+        :class="{ active: currentTab === 'explore' }"
+        tabindex="0"
+        role="button"
+        @click="handleItemClick('explore')"
+      >
+        <div class="icon-wrap purple-glow">
+          <Compass :size="24" :stroke-width="currentTab === 'explore' ? 2.5 : 2" />
+        </div>
+        <span class="label">Explore</span>
+        <div class="active-indicator purple-bg" v-if="currentTab === 'explore'"></div>
+      </button>
+
+      <!-- 4. Movies -->
       <button
         class="tv-nav-item"
         :class="{ active: currentTab === 'home' && mode === 'movie' }"
@@ -114,7 +130,7 @@ const handleItemClick = (tab: TabKey, targetMode?: MediaMode) => {
         <span class="label">Movies</span>
       </button>
 
-      <!-- 4. TV Series -->
+      <!-- 5. TV Series -->
       <button
         class="tv-nav-item"
         :class="{ active: currentTab === 'home' && mode === 'tv' }"
@@ -129,7 +145,7 @@ const handleItemClick = (tab: TabKey, targetMode?: MediaMode) => {
         <div class="active-indicator cyan-bg" v-if="currentTab === 'home' && mode === 'tv'"></div>
       </button>
 
-      <!-- 5. Watchlist -->
+      <!-- 6. Watchlist -->
       <button
         class="tv-nav-item"
         :class="{ active: currentTab === 'watchlist' }"
@@ -301,9 +317,18 @@ const handleItemClick = (tab: TabKey, targetMode?: MediaMode) => {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
 }
 
+.tv-nav-item.active .icon-wrap.purple-glow {
+  color: #c084fc;
+}
+
 .tv-nav-item .active-indicator.cyan-bg {
   background: #06b6d4;
   box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+}
+
+.tv-nav-item .active-indicator.purple-bg {
+  background: #c084fc;
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.8);
 }
 
 /* D-pad and Keyboard TV Focus Ring */
@@ -327,6 +352,11 @@ const handleItemClick = (tab: TabKey, targetMode?: MediaMode) => {
 .tv-nav-item:focus-visible .icon-wrap.cyan-glow,
 .tv-nav-item.tv-focused .icon-wrap.cyan-glow {
   color: #06b6d4;
+}
+
+.tv-nav-item:focus-visible .icon-wrap.purple-glow,
+.tv-nav-item.tv-focused .icon-wrap.purple-glow {
+  color: #c084fc;
 }
 
 /* Footer Clock and Support */

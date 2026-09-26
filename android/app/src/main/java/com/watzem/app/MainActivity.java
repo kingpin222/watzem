@@ -7,12 +7,17 @@ import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.Rational;
 import android.view.DisplayCutout;
+import android.view.InputDevice;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.WebSettings;
@@ -81,7 +86,27 @@ public class MainActivity extends BridgeActivity {
     }
 
     public int getSafeTopInsetDp() {
-        return 0;
+        int topPx = 0;
+        try {
+            int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resId > 0) {
+                topPx = getResources().getDimensionPixelSize(resId);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                WindowInsets insets = getWindow().getDecorView().getRootWindowInsets();
+                if (insets != null) {
+                    DisplayCutout cutout = insets.getDisplayCutout();
+                    if (cutout != null) {
+                        topPx = Math.max(topPx, cutout.getSafeInsetTop());
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        float density = getResources().getDisplayMetrics().density;
+        int topDp = density > 0 ? Math.round(topPx / density) : 0;
+        // Standard Android modern notch/cutout is 34-40dp
+        return Math.max(topDp, 36);
     }
 
     public void injectSafeInsets() {
@@ -166,6 +191,11 @@ public class MainActivity extends BridgeActivity {
                 settings.setSupportMultipleWindows(false);
                 settings.setTextZoom(100);
 
+                // Enable D-pad remote navigation focus and touch bridge
+                webView.setFocusable(true);
+                webView.setFocusableInTouchMode(true);
+                webView.addJavascriptInterface(new TvNativeBridge(), "TvNativeBridge");
+
                 webView.setWebChromeClient(new CustomWebChromeClient(this.getBridge()));
 
                 webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
@@ -181,6 +211,82 @@ public class MainActivity extends BridgeActivity {
                 webView.postDelayed(this::injectSafeInsets, 1000);
             }
         } catch (Exception ignored) {}
+    }
+
+    public class TvNativeBridge {
+        @JavascriptInterface
+        public void clickCenter() {
+            simulateTouchClick(0.5f, 0.5f);
+        }
+
+        @JavascriptInterface
+        public void clickAt(final float relX, final float relY) {
+            simulateTouchClick(relX, relY);
+        }
+    }
+
+    public void simulateTouchClick(final float relX, final float relY) {
+        runOnUiThread(() -> {
+            try {
+                if (getBridge() == null) return;
+                WebView webView = getBridge().getWebView();
+                if (webView == null) return;
+
+                int width = webView.getWidth();
+                int height = webView.getHeight();
+                if (width <= 0 || height <= 0) return;
+
+                float x = width * Math.max(0.01f, Math.min(0.99f, relX));
+                float y = height * Math.max(0.01f, Math.min(0.99f, relY));
+
+                long downTime = SystemClock.uptimeMillis();
+                MotionEvent eventDown = MotionEvent.obtain(
+                    downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0
+                );
+                eventDown.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+                webView.dispatchTouchEvent(eventDown);
+                eventDown.recycle();
+
+                webView.postDelayed(() -> {
+                    try {
+                        long upTime = SystemClock.uptimeMillis();
+                        MotionEvent eventUp = MotionEvent.obtain(
+                            downTime, upTime, MotionEvent.ACTION_UP, x, y, 0
+                        );
+                        eventUp.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+                        webView.dispatchTouchEvent(eventUp);
+                        eventUp.recycle();
+                    } catch (Exception ignored) {}
+                }, 50);
+            } catch (Exception ignored) {}
+        });
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (this.getBridge() != null) {
+            WebView webView = this.getBridge().getWebView();
+            if (webView != null && !webView.hasFocus()) {
+                webView.requestFocus();
+            }
+        }
+
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                if (this.getBridge() != null) {
+                    WebView webView = this.getBridge().getWebView();
+                    if (webView != null) {
+                        webView.evaluateJavascript(
+                            "(function() { return window.__WATZEM_TV_HANDLE_CENTER__ ? window.__WATZEM_TV_HANDLE_CENTER__() : false; })()",
+                            null
+                        );
+                    }
+                }
+            }
+        }
+
+        return super.dispatchKeyEvent(event);
     }
 
     @Override

@@ -37,7 +37,11 @@ async function initCapacitor() {
   const isNative = Capacitor.isNativePlatform();
   if (isNative) {
     document.documentElement.classList.add('is-native-app');
-    document.documentElement.style.setProperty('--safe-top', '0px');
+    if (!isTv) {
+      document.documentElement.style.setProperty('--safe-top', '36px');
+    } else {
+      document.documentElement.style.setProperty('--safe-top', '0px');
+    }
   }
 
   try {
@@ -48,7 +52,7 @@ async function initCapacitor() {
     await NavigationBar.hide();
   } catch {}
 
-  // On TV keep landscape; on mobile lock portrait
+  // On mobile lock portrait; TV is natively fixed landscape
   if (!isTv) {
     try {
       await ScreenOrientation.lock({ orientation: 'portrait' });
@@ -59,21 +63,27 @@ async function initCapacitor() {
         }
       } catch {}
     }
-  } else {
-    try {
-      await ScreenOrientation.lock({ orientation: 'landscape' });
-    } catch {}
   }
 
-  // Set safe-area CSS vars flush to the top
+  // Set safe-area CSS vars (Notch/Cutout safe zone on phone, flush 0px on TV)
   const syncSafeArea = () => {
+    if (isTv) {
+      document.documentElement.style.setProperty('--safe-top', '0px');
+      return;
+    }
     const style = getComputedStyle(document.documentElement);
-    const top = (window as any).__ANDROID_SAFE_TOP__ ? `${(window as any).__ANDROID_SAFE_TOP__}px` : '0px';
+    let top = (window as any).__ANDROID_SAFE_TOP__ ? `${(window as any).__ANDROID_SAFE_TOP__}px` : style.getPropertyValue('--safe-top').trim();
+    if (isNative) {
+      const parsed = parseFloat(top);
+      if (!parsed || parsed < 36) {
+        top = '36px';
+      }
+    }
     const bottom = style.getPropertyValue('--safe-bottom').trim() || '0px';
     const left   = style.getPropertyValue('--safe-left').trim()   || '0px';
     const right  = style.getPropertyValue('--safe-right').trim()  || '0px';
 
-    document.documentElement.style.setProperty('--safe-top',    top);
+    document.documentElement.style.setProperty('--safe-top',    top || '0px');
     document.documentElement.style.setProperty('--safe-bottom', bottom);
     document.documentElement.style.setProperty('--safe-left',   left);
     document.documentElement.style.setProperty('--safe-right',  right);

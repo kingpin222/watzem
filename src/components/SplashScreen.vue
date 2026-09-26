@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import WatzemLogo from './WatzemLogo.vue';
+import versionData from '../../version.json';
 
 const emit = defineEmits<{
   (e: 'finish'): void;
@@ -8,6 +11,7 @@ const emit = defineEmits<{
 
 const isDismissing = ref(false);
 const progress = ref(0);
+const appVersion = ref(versionData.version || '1.0.0');
 
 // Curated verified 100% working high-res poster artworks for the animated matrix rows
 const row1Posters = [
@@ -71,7 +75,18 @@ const dismiss = () => {
   }, 450);
 };
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const info = await CapApp.getInfo();
+      if (info?.version) {
+        appVersion.value = info.version;
+      }
+    }
+  } catch (e) {
+    console.debug('Failed to get native app version:', e);
+  }
+
   // Animate progress bar across 2.2 seconds
   const startTime = Date.now();
   const duration = 2200;
@@ -197,6 +212,11 @@ onMounted(() => {
         <div class="status-row font-mono">
           <span class="status-msg">UNLIMITED MOVIES & TV</span>
           <span class="status-pct">{{ progress }}%</span>
+        </div>
+
+        <div class="splash-version-pill font-mono">
+          <span class="version-dot"></span>
+          <span>v{{ appVersion }}</span>
         </div>
 
         <span class="tap-hint font-mono">Tap anywhere to start</span>
@@ -460,6 +480,31 @@ onMounted(() => {
 .status-pct {
   color: var(--accent-amber);
   font-weight: 700;
+}
+
+.splash-version-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.version-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-amber, #f59e0b);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
 }
 
 .tap-hint {

@@ -16,6 +16,7 @@ dist-server/
 # Archive & Binary files
 *.zip
 *.apk
+screen_tv_test.png
 public/install.apk
 dist/*.apk
 android/app/src/main/assets/public/*.apk

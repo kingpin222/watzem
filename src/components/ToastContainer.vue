@@ -37,7 +37,7 @@ const { toasts, dismissToast } = useToast();
 <style scoped>
 .toast-container {
   position: fixed;
-  top: calc(var(--header-height) + 12px);
+  top: calc(max(var(--safe-top, 0px), env(safe-area-inset-top, 0px)) + var(--header-height) + 12px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;

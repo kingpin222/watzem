@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { tvSpatialNav } from '../services/tvSpatialNav';
 import { MediaItem } from '../types';
 import { useApi } from '../composables/useApi';
 import { useHaptics } from '../composables/useHaptics';
@@ -84,7 +85,11 @@ const loadData = async (reset = true) => {
 
       heroItems.value = pool.slice(0, 10);
     } else {
-      items.value.push(...results);
+      const existingIds = new Set(items.value.map((x) => x.id));
+      const uniqueResults = results.filter((x) => !existingIds.has(x.id));
+      if (uniqueResults.length > 0) {
+        items.value.push(...uniqueResults);
+      }
     }
     totalPages.value = data.total_pages || 1;
   } catch (error) {
@@ -105,14 +110,36 @@ const handleSelectFilter = (catKey: string) => {
 const isLoadingMore = ref(false);
 
 const loadMore = async () => {
-  if (!isLoadingMore.value && !isLoading.value && page.value < totalPages.value) {
-    isLoadingMore.value = true;
-    try {
-      page.value++;
-      await loadData(false);
-    } finally {
-      isLoadingMore.value = false;
+  if (isLoadingMore.value || isLoading.value || page.value >= totalPages.value) return;
+
+  const activeEl = document.activeElement as HTMLElement | null;
+  const wasLoadMore = activeEl?.classList.contains('load-more-btn');
+  const focusedCardId = activeEl?.getAttribute('data-card-id');
+  const prevCount = items.value.length;
+
+  isLoadingMore.value = true;
+  try {
+    page.value++;
+    await loadData(false);
+    await nextTick();
+
+    // Maintain focus on newly loaded items or keep current focus
+    if (wasLoadMore) {
+      const allCards = document.querySelectorAll<HTMLElement>('.movies-grid .movie-card');
+      if (allCards.length > prevCount && allCards[prevCount]) {
+        tvSpatialNav.focusElement(allCards[prevCount]);
+      } else {
+        const loadBtn = document.querySelector<HTMLElement>('.load-more-btn');
+        if (loadBtn) tvSpatialNav.focusElement(loadBtn);
+      }
+    } else if (focusedCardId) {
+      const targetCard = document.querySelector<HTMLElement>(`[data-card-id="${focusedCardId}"]`);
+      if (targetCard) {
+        tvSpatialNav.focusElement(targetCard);
+      }
     }
+  } finally {
+    isLoadingMore.value = false;
   }
 };
 
@@ -185,23 +212,26 @@ onUnmounted(() => {
         />
       </div>
 
-      <!-- Infinite Scroll Trigger Sentinel & Loading State -->
+      <!-- Infinite Scroll Trigger Sentinel & Loading State (Button stays permanently mounted) -->
       <div
         v-if="items.length > 0 && page < totalPages"
         ref="sentinelRef"
         class="load-more-wrap"
       >
-        <div v-if="isLoadingMore" class="loading-indicator tv-theme">
-          <Loader2 :size="18" class="spin" />
-          <span>Loading more series...</span>
-        </div>
         <button
-          v-else
           class="load-more-btn tv-theme"
+          :class="{ 'is-loading': isLoadingMore }"
+          :aria-busy="isLoadingMore"
           @click="loadMore"
         >
-          <span>Load More</span>
-          <ChevronDown :size="16" />
+          <div v-if="isLoadingMore" class="loading-indicator-inline">
+            <Loader2 :size="18" class="spin" />
+            <span>Loading more series...</span>
+          </div>
+          <div v-else class="load-more-content">
+            <span>Load More</span>
+            <ChevronDown :size="16" />
+          </div>
         </button>
       </div>
     </div>
@@ -396,9 +426,18 @@ onUnmounted(() => {
   border-color: var(--accent-rose);
 }
 
-.load-more-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
+.load-more-btn:disabled,
+.load-more-btn.is-loading {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.load-more-content,
+.loading-indicator-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .loading-indicator {

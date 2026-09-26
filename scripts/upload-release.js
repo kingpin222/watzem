@@ -90,6 +90,8 @@ export async function uploadRelease() {
 
     // Switch to release branch to sync version.json strictly without source code
     run('git checkout release');
+    run('git fetch origin main');
+    run('git reset --hard origin/main');
     run('git checkout source -- version.json');
     run('git add version.json');
     try {

@@ -144,6 +144,14 @@ export interface CreditsResponse {
   cast: CastMember[];
 }
 
+export interface PersonSearchResult {
+  id: number;
+  name: string;
+  profile_path: string | null;
+  known_for_department?: string;
+  popularity?: number;
+}
+
 
 export interface DownloadedItem {
   id: number;

@@ -6,7 +6,8 @@ import {
   SeasonDetailsResponse,
   CreditsResponse,
   MediaDetails,
-  MediaMode
+  MediaMode,
+  PersonSearchResult
 } from '../types';
 
 export const TMDB_API_KEY = '4ef0d7355d9ffb5151e987764708ce96';
@@ -253,28 +254,134 @@ export class TmdbClient {
   }
 
   /**
-   * Search movies or TV shows directly from TMDB
+   * Search movies or TV shows (or both via multi) directly from TMDB
    */
   static async searchMedia(
     query: string,
-    mode: MediaMode = 'movie',
+    mode: MediaMode | 'multi' | 'all' = 'multi',
     page = 1
   ): Promise<MediaListResponse> {
-    const dedupKey = `search:${mode}:${query.toLowerCase().trim()}:${page}`;
+    const isMulti = mode === 'multi' || mode === 'all';
+    const effectiveMode = isMulti ? 'multi' : mode;
+    const dedupKey = `search:${effectiveMode}:${query.toLowerCase().trim()}:${page}`;
 
     return fetchWithDedup(dedupKey, async () => {
       try {
-        const url = `${TMDB_BASE_URL}/search/${mode}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&page=${page}`;
+        const endpoint = isMulti ? 'search/multi' : `search/${mode}`;
+        const url = `${TMDB_BASE_URL}/${endpoint}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&page=${page}`;
         const raw = await requestJson<MediaListResponse>(url);
         return {
           page: raw.page || page,
-          results: (raw.results || []).map((item) => ({ ...item, media_type: mode })),
+          results: (raw.results || [])
+            .filter((item: any) => item.media_type !== 'person')
+            .map((item: any) => {
+              const detectedType = item.media_type || (item.first_air_date || item.name ? 'tv' : 'movie');
+              return {
+                ...item,
+                media_type: isMulti ? detectedType : mode
+              };
+            }),
           total_pages: raw.total_pages || 1,
           total_results: raw.total_results || 0
         };
       } catch (err) {
         console.warn('Direct search failed:', err);
         return { page, results: [], total_pages: 1, total_results: 0 };
+      }
+    });
+  }
+
+  /**
+   * Search for an actor / person by name
+   */
+  static async searchPerson(query: string): Promise<PersonSearchResult | null> {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return null;
+    const dedupKey = `search_person:${trimmed.toLowerCase()}`;
+
+    return fetchWithDedup(dedupKey, async () => {
+      try {
+        const url = `${TMDB_BASE_URL}/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmed)}`;
+        const raw = await requestJson<{ results?: Array<any> }>(url);
+        const results = raw.results || [];
+        if (!results.length) return null;
+
+        const cleanTrimmed = trimmed.toLowerCase();
+        // Exact name match or most popular
+        const exact = results.find((p) => p.name?.toLowerCase() === cleanTrimmed);
+        const candidate = exact || results[0];
+
+        if (!candidate) return null;
+
+        return {
+          id: candidate.id,
+          name: candidate.name,
+          profile_path: candidate.profile_path || null,
+          known_for_department: candidate.known_for_department || 'Acting',
+          popularity: candidate.popularity || 0
+        };
+      } catch (err) {
+        console.warn('searchPerson failed:', err);
+        return null;
+      }
+    });
+  }
+
+  /**
+   * Get all movies and TV shows for an actor / person
+   */
+  static async getActorCredits(personId: number | string): Promise<MediaItem[]> {
+    const dedupKey = `actor_credits:${personId}`;
+
+    return fetchWithDedup(dedupKey, async () => {
+      try {
+        const url = `${TMDB_BASE_URL}/person/${personId}/combined_credits?api_key=${TMDB_API_KEY}`;
+        const raw = await requestJson<{ cast?: Array<any> }>(url);
+        const cast = raw.cast || [];
+
+        // Filter out talk shows, reality shows, and non-scripted / guest appearances
+        const valid = cast.filter((c) => {
+          if (!c.poster_path) return false;
+          const genreIds: number[] = c.genre_ids || [];
+          if (genreIds.includes(10767) || genreIds.includes(10764)) return false; // 10767=Talk, 10764=Reality
+          const char = (c.character || '').toLowerCase();
+          if (char.startsWith('self') || char.includes('guest')) return false;
+          return true;
+        });
+
+        // Deduplicate by media_type and id
+        const seen = new Set<string>();
+        const deduped: MediaItem[] = [];
+
+        for (const item of valid) {
+          const type: 'movie' | 'tv' = item.media_type === 'tv' || (!item.title && item.name) ? 'tv' : 'movie';
+          const key = `${type}-${item.id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            deduped.push({
+              id: item.id,
+              title: item.title || item.name || '',
+              name: item.name || item.title || '',
+              media_type: type,
+              poster_path: item.poster_path,
+              backdrop_path: item.backdrop_path,
+              overview: item.overview || '',
+              release_date: item.release_date || item.first_air_date,
+              first_air_date: item.first_air_date || item.release_date,
+              vote_average: item.vote_average || 0,
+              vote_count: item.vote_count || 0,
+              popularity: item.popularity || 0,
+              character: item.character
+            } as any);
+          }
+        }
+
+        // Sort by popularity descending
+        deduped.sort((a, b) => ((b as any).popularity || 0) - ((a as any).popularity || 0));
+        return deduped;
+      } catch (err) {
+        console.warn('getActorCredits failed:', err);
+        return [];
       }
     });
   }

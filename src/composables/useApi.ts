@@ -50,11 +50,11 @@ export function useApi() {
   };
 
   /**
-   * Search movies or TV shows with cache directly from TMDB
+   * Search movies, TV shows, or both with cache directly from TMDB
    */
   const searchMedia = async (
     query: string,
-    mode: MediaMode = 'movie',
+    mode: MediaMode | 'multi' | 'all' = 'multi',
     page = 1
   ): Promise<MediaListResponse> => {
     const cacheKey = `search:${mode}:${query.toLowerCase().trim()}:${page}`;
@@ -63,6 +63,31 @@ export function useApi() {
       cacheKey,
       () => TmdbClient.searchMedia(query, mode, page),
       CACHE_TTLS.SEARCH
+    );
+  };
+
+  /**
+   * Search for an actor / person with cache
+   */
+  const searchPerson = async (query: string) => {
+    const trimmed = query.trim().toLowerCase();
+    const cacheKey = `person_search:${trimmed}`;
+    return ApiCache.fetchWithCache(
+      cacheKey,
+      () => TmdbClient.searchPerson(trimmed),
+      CACHE_TTLS.SEARCH
+    );
+  };
+
+  /**
+   * Get all movies and TV credits for an actor with cache
+   */
+  const getActorCredits = async (personId: number | string) => {
+    const cacheKey = `actor_credits:${personId}`;
+    return ApiCache.fetchWithCache(
+      cacheKey,
+      () => TmdbClient.getActorCredits(personId),
+      CACHE_TTLS.CREDITS
     );
   };
 
@@ -227,6 +252,8 @@ export function useApi() {
     getMediaImages,
     getMediaVideos,
     getTrendingSearches,
+    searchPerson,
+    getActorCredits,
     probeStreamServers,
     clearCache,
     invalidateCache
