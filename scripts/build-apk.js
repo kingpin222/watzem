@@ -17,11 +17,46 @@ console.log('🚀 ========================================');
 console.log('🚀 STARTING FULL APK BUILD WITH AUTO-BUMP');
 console.log('🚀 ========================================\n');
 
+// Helper to clean any leaked APK files from web and android assets
+function cleanAssetApks() {
+  const targets = [
+    path.join(projectRoot, 'dist/install.apk'),
+    path.join(projectRoot, 'android/app/src/main/assets/public/install.apk')
+  ];
+  for (const t of targets) {
+    if (fs.existsSync(t)) {
+      fs.unlinkSync(t);
+      console.log(`🧹 Cleaned nested APK from: ${path.relative(projectRoot, t)}`);
+    }
+  }
+
+  // Also scan android/app/src/main/assets/public for any *.apk
+  const androidAssetsDir = path.join(projectRoot, 'android/app/src/main/assets/public');
+  if (fs.existsSync(androidAssetsDir)) {
+    const files = fs.readdirSync(androidAssetsDir);
+    for (const file of files) {
+      if (file.endsWith('.apk')) {
+        fs.unlinkSync(path.join(androidAssetsDir, file));
+        console.log(`🧹 Removed APK artifact from Android assets: ${file}`);
+      }
+    }
+  }
+}
+
+// 0. Pre-clean to avoid bundling old APK into dist
+cleanAssetApks();
+
 // 1. Build web assets & compile server (triggers prebuild auto-bump)
 run('npm run build');
 
+// 2. Ensure dist doesn't have an APK before sync
+cleanAssetApks();
+
 // 3. Sync web assets and configs to native Android project
 run('npx cap sync android');
+
+// 3.1 Guarantee no APK exists inside Android assets before compiling
+cleanAssetApks();
 
 // 4. Build APK with Gradle
 const androidDir = path.join(projectRoot, 'android');

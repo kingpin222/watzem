@@ -1,10 +1,29 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
+import fs from 'fs';
+
+// Helper plugin to ensure APK binaries are never bundled into web distribution assets
+function excludeApkPlugin() {
+  return {
+    name: 'exclude-apk-from-dist',
+    closeBundle() {
+      const distDir = path.resolve(__dirname, 'dist');
+      if (fs.existsSync(distDir)) {
+        const files = fs.readdirSync(distDir);
+        for (const file of files) {
+          if (file.endsWith('.apk')) {
+            fs.unlinkSync(path.join(distDir, file));
+          }
+        }
+      }
+    }
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), excludeApkPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')

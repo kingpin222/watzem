@@ -13,8 +13,12 @@ dist-server/
 .env.*.local
 *.local
 
-# Archive files
+# Archive & Binary files
 *.zip
+*.apk
+public/install.apk
+dist/*.apk
+android/app/src/main/assets/public/*.apk
 
 # macOS system files
 .DS_Store
