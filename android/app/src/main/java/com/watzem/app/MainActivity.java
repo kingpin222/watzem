@@ -81,27 +81,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     public int getSafeTopInsetDp() {
-        int topPx = 0;
-        try {
-            int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-            if (resId > 0) {
-                topPx = getResources().getDimensionPixelSize(resId);
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                WindowInsets insets = getWindow().getDecorView().getRootWindowInsets();
-                if (insets != null) {
-                    DisplayCutout cutout = insets.getDisplayCutout();
-                    if (cutout != null) {
-                        topPx = Math.max(topPx, cutout.getSafeInsetTop());
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-
-        float density = getResources().getDisplayMetrics().density;
-        int topDp = density > 0 ? Math.round(topPx / density) : 0;
-        // Standard Android modern notch/cutout is 34-40dp
-        return Math.max(topDp, 36);
+        return 0;
     }
 
     public void injectSafeInsets() {

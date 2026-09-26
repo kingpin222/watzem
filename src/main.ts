@@ -20,7 +20,7 @@ async function initCapacitor() {
   const isNative = Capacitor.isNativePlatform();
   if (isNative) {
     document.documentElement.classList.add('is-native-app');
-    document.documentElement.style.setProperty('--safe-top', '36px');
+    document.documentElement.style.setProperty('--safe-top', '0px');
   }
 
   try {
@@ -41,27 +41,15 @@ async function initCapacitor() {
     } catch {}
   }
 
-  // Freeze safe-area CSS vars as static values so that player open/close
-  // does not cause layout jitter, while strictly protecting the notch safe-zone.
+  // Set safe-area CSS vars flush to the top
   const syncSafeArea = () => {
     const style = getComputedStyle(document.documentElement);
-    let top = style.getPropertyValue('--safe-top').trim();
-    const nativeSafeTop = (window as any).__ANDROID_SAFE_TOP__;
-
-    if (nativeSafeTop && nativeSafeTop > 0) {
-      top = `${nativeSafeTop}px`;
-    } else if (isNative) {
-      const parsed = parseFloat(top);
-      if (!parsed || parsed < 36) {
-        top = '36px';
-      }
-    }
-
+    const top = (window as any).__ANDROID_SAFE_TOP__ ? `${(window as any).__ANDROID_SAFE_TOP__}px` : '0px';
     const bottom = style.getPropertyValue('--safe-bottom').trim() || '0px';
     const left   = style.getPropertyValue('--safe-left').trim()   || '0px';
     const right  = style.getPropertyValue('--safe-right').trim()  || '0px';
 
-    document.documentElement.style.setProperty('--safe-top',    top || '0px');
+    document.documentElement.style.setProperty('--safe-top',    top);
     document.documentElement.style.setProperty('--safe-bottom', bottom);
     document.documentElement.style.setProperty('--safe-left',   left);
     document.documentElement.style.setProperty('--safe-right',  right);

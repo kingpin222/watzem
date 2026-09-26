@@ -102,8 +102,7 @@ const handleModeChange = (newMode: MediaMode) => {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid var(--border-subtle);
-  padding-top: var(--safe-top);
-  transition: padding-top 0.25s ease;
+  padding-top: 0px;
 }
 
 .header-content {

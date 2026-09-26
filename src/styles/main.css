@@ -38,10 +38,9 @@
   --header-height: 60px;
 }
 
-/* Enforce hardware notch/camera cutout safe zone in native full-screen mode */
 html.is-native-app,
 :root.is-native-app {
-  --safe-top: max(env(safe-area-inset-top, 0px), 36px);
+  --safe-top: env(safe-area-inset-top, 0px);
 }
 
 * {

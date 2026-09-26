@@ -2454,9 +2454,9 @@ watch([currentSeason, currentEpisode], () => {
 
 .theater-top-controls {
   position: absolute;
-  top: max(calc(var(--safe-top, 0px) + 14px), 16px);
-  left: max(calc(var(--safe-left, 0px) + 14px), 14px);
-  right: max(calc(var(--safe-right, 0px) + 14px), 14px);
+  top: 8px;
+  left: max(var(--safe-left, 0px), 12px);
+  right: max(var(--safe-right, 0px), 12px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2583,11 +2583,31 @@ watch([currentSeason, currentEpisode], () => {
   border-color: #63b8bc;
 }
 
+/* Theater Server Menu Dropdown */
+.theater-server-menu {
+  position: absolute;
+  top: 48px;
+  left: max(var(--safe-left, 0px), 12px);
+  z-index: 100002;
+  background: rgba(14, 14, 22, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  min-width: 220px;
+  max-width: 280px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 /* Theater Episodes Menu Dropdown */
 .theater-episodes-menu {
   position: absolute;
-  top: max(calc(var(--safe-top, 0px) + 54px), 54px);
-  left: max(calc(var(--safe-left, 0px) + 140px), 80px);
+  top: 48px;
+  left: max(var(--safe-left, 0px), 80px);
   z-index: 100002;
   background: rgba(14, 14, 22, 0.96);
   backdrop-filter: blur(20px);
@@ -2758,7 +2778,7 @@ watch([currentSeason, currentEpisode], () => {
 
 @media (min-width: 768px) {
   .theater-top-controls {
-    top: max(calc(var(--safe-top, 0px) + 18px), 18px);
+    top: 10px;
     left: max(calc(var(--safe-left, 0px) + 20px), 20px);
     right: max(calc(var(--safe-right, 0px) + 20px), 20px);
   }
@@ -2832,7 +2852,7 @@ watch([currentSeason, currentEpisode], () => {
 /* Automatic Fallback Notice Toast */
 .fallback-notice-pill {
   position: absolute;
-  top: max(calc(var(--safe-top, 0px) + 14px), 14px);
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100001;

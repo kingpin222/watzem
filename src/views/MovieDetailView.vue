@@ -956,12 +956,12 @@ const handleBack = () => {
   left: 0;
   right: 0;
   z-index: 60;
-  padding: calc(var(--safe-top) + 0.65rem) max(1rem, var(--safe-right, 0px)) 0.65rem max(1rem, var(--safe-left, 0px));
+  padding: 0.5rem max(1rem, var(--safe-right, 0px)) 0.5rem max(1rem, var(--safe-left, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   pointer-events: none;
-  transition: padding-top 0.25s ease;
+  transition: padding 0.2s ease;
 }
 
 .circle-nav-btn {
