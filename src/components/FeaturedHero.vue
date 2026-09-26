@@ -843,6 +843,21 @@ watch(
   background: rgba(245, 158, 11, 0.16);
 }
 
+.btn-play:focus-visible,
+.btn-play.tv-focused,
+.btn-details:focus-visible,
+.btn-details.tv-focused,
+.btn-bookmark:focus-visible,
+.btn-bookmark.tv-focused,
+.hero-nav-arrow:focus-visible,
+.hero-nav-arrow.tv-focused {
+  outline: 3.5px solid var(--accent-primary, #f59e0b) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.8) !important;
+  transform: scale(1.08);
+  z-index: 10;
+}
+
 /* Indicators Cluster & Random Shuffle */
 .hero-indicators-cluster {
   display: flex;

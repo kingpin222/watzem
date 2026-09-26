@@ -209,7 +209,14 @@ const handleClick = () => {
 </script>
 
 <template>
-  <div class="movie-card" @click="handleClick">
+  <div
+    class="movie-card"
+    tabindex="0"
+    role="button"
+    :aria-label="title"
+    @click="handleClick"
+    @keydown.enter.prevent="handleClick"
+  >
     <div class="poster-container">
       <!-- Loading Skeleton with Smooth Crossfade & Pulsing Icon (only if there is an image to load) -->
       <div
@@ -298,6 +305,26 @@ const handleClick = () => {
 .movie-card:active {
   transform: scale(0.96) translateY(0);
   transition: transform 0.12s ease;
+}
+
+.movie-card:focus-visible,
+.movie-card.tv-focused {
+  outline: 3.5px solid var(--accent-primary, #f59e0b) !important;
+  outline-offset: 3px;
+  transform: translateY(-6px) scale(1.06);
+  border-color: var(--accent-primary, #f59e0b);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 28px rgba(245, 158, 11, 0.55);
+  z-index: 20;
+}
+
+.movie-card:focus-visible .play-overlay,
+.movie-card.tv-focused .play-overlay {
+  opacity: 1;
+}
+
+.movie-card:focus-visible .poster-img.loaded,
+.movie-card.tv-focused .poster-img.loaded {
+  transform: scale(1.04);
 }
 
 @media (hover: hover) {

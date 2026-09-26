@@ -157,6 +157,30 @@ const handleSelect = (tab: TabKey) => {
   transform: scale(0.92);
 }
 
+.nav-tab:focus-visible,
+.nav-tab.tv-focused {
+  color: #ffffff;
+  outline: none;
+  transform: scale(1.15) translateY(-4px);
+}
+
+.nav-tab:focus-visible .icon-wrap,
+.nav-tab.tv-focused .icon-wrap {
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.8));
+}
+
+.nav-tab.tv-theme:focus-visible .icon-wrap,
+.nav-tab.tv-theme.tv-focused .icon-wrap {
+  filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.8));
+}
+
+.nav-tab:focus-visible .tab-label,
+.nav-tab.tv-focused .tab-label {
+  color: #fff;
+  font-weight: 700;
+}
+
 .icon-wrap {
   position: relative;
   display: flex;
