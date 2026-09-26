@@ -2299,7 +2299,7 @@ watch([currentSeason, currentEpisode], () => {
 /* Fullscreen Theater Top Controls */
 .theater-top-controls {
   position: absolute;
-  top: max(calc(var(--safe-top, 0px) + 12px), 12px);
+  top: max(calc(var(--safe-top, 0px) + 14px), 16px);
   left: max(calc(var(--safe-left, 0px) + 14px), 14px);
   right: max(calc(var(--safe-right, 0px) + 14px), 14px);
   display: flex;

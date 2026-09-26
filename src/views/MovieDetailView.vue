@@ -956,25 +956,30 @@ const handleBack = () => {
   left: 0;
   right: 0;
   z-index: 60;
-  padding: calc(var(--safe-top) + 0.6rem) 1rem 0.6rem;
+  padding: calc(var(--safe-top) + 0.65rem) max(1rem, var(--safe-right, 0px)) 0.65rem max(1rem, var(--safe-left, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   pointer-events: none;
+  transition: padding-top 0.25s ease;
 }
 
 .circle-nav-btn {
   pointer-events: auto;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: rgba(14, 14, 22, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--text-primary);
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 
 @media (hover: hover) and (pointer: fine) {

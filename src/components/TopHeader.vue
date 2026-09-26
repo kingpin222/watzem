@@ -98,11 +98,12 @@ const handleModeChange = (newMode: MediaMode) => {
   top: 0;
   z-index: 50;
   width: 100%;
-  background: rgba(7, 7, 10, 0.65);
+  background: rgba(7, 7, 10, 0.78);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid var(--border-subtle);
   padding-top: var(--safe-top);
+  transition: padding-top 0.25s ease;
 }
 
 .header-content {
@@ -123,6 +124,7 @@ const handleModeChange = (newMode: MediaMode) => {
   gap: 0.5rem;
   cursor: pointer;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .logo-icon {
@@ -164,8 +166,8 @@ const handleModeChange = (newMode: MediaMode) => {
 
 /* Mode pill */
 .mode-pill-wrap {
-  flex: 1;
-  max-width: 180px;
+  flex: 0 1 170px;
+  min-width: 136px;
   display: flex;
   justify-content: center;
 }
@@ -203,12 +205,20 @@ const handleModeChange = (newMode: MediaMode) => {
   position: relative;
   z-index: 2;
   flex: 1;
-  padding: 0.35rem 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0.36rem 0.25rem;
   color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 600;
   text-align: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
   transition: color 0.2s ease;
+  user-select: none;
 }
 
 .pill-btn.active {
@@ -221,7 +231,8 @@ const handleModeChange = (newMode: MediaMode) => {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
+  flex-shrink: 0;
 }
 
 /* Support / Tip Jar Button - aligned to system design tokens */
@@ -242,6 +253,7 @@ const handleModeChange = (newMode: MediaMode) => {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   user-select: none;
+  flex-shrink: 0;
 }
 
 .support-btn:hover {
@@ -289,6 +301,8 @@ const handleModeChange = (newMode: MediaMode) => {
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 0 12px rgba(250, 204, 21, 0.2);
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .update-badge-btn:hover {
@@ -324,5 +338,75 @@ const handleModeChange = (newMode: MediaMode) => {
   0% { transform: scale(0.95); opacity: 0.7; }
   50% { transform: scale(1.3); opacity: 1; }
   100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+/* Mobile responsive optimizations for top buttons & safe zones */
+@media (max-width: 480px) {
+  .header-content {
+    padding: 0 max(0.75rem, var(--safe-left, 0px));
+    padding-right: max(0.75rem, var(--safe-right, 0px));
+    gap: 0.45rem;
+  }
+
+  .mode-pill-wrap {
+    flex: 0 1 146px;
+    min-width: 130px;
+  }
+
+  .pill-btn {
+    font-size: 0.72rem;
+    gap: 3px;
+    padding: 0.32rem 0.15rem;
+  }
+
+  .support-btn {
+    height: 32px;
+    padding: 0 0.6rem;
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+
+  .update-badge-btn {
+    height: 32px;
+    padding: 0 0.55rem;
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 370px) {
+  .header-content {
+    padding: 0 0.5rem;
+    gap: 0.35rem;
+  }
+
+  .mode-pill-wrap {
+    flex: 0 1 125px;
+    min-width: 118px;
+  }
+
+  .pill-btn span {
+    font-size: 0.68rem;
+  }
+
+  .support-text {
+    display: none;
+  }
+
+  .support-btn {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .update-badge-btn .badge-text {
+    display: none;
+  }
+
+  .update-badge-btn {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+  }
 }
 </style>

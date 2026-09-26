@@ -8,8 +8,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Rational;
+import android.view.DisplayCutout;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
@@ -78,6 +80,49 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    public int getSafeTopInsetDp() {
+        int topPx = 0;
+        try {
+            int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resId > 0) {
+                topPx = getResources().getDimensionPixelSize(resId);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                WindowInsets insets = getWindow().getDecorView().getRootWindowInsets();
+                if (insets != null) {
+                    DisplayCutout cutout = insets.getDisplayCutout();
+                    if (cutout != null) {
+                        topPx = Math.max(topPx, cutout.getSafeInsetTop());
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        float density = getResources().getDisplayMetrics().density;
+        int topDp = density > 0 ? Math.round(topPx / density) : 0;
+        // Standard Android modern notch/cutout is 34-40dp
+        return Math.max(topDp, 36);
+    }
+
+    public void injectSafeInsets() {
+        runOnUiThread(() -> {
+            try {
+                if (this.getBridge() != null) {
+                    WebView webView = this.getBridge().getWebView();
+                    if (webView != null) {
+                        int safeTop = getSafeTopInsetDp();
+                        String js = "(function() {"
+                            + "  document.documentElement.style.setProperty('--safe-top', '" + safeTop + "px');"
+                            + "  window.__ANDROID_SAFE_TOP__ = " + safeTop + ";"
+                            + "  document.documentElement.classList.add('is-native-app');"
+                            + "})();";
+                        webView.evaluateJavascript(js, null);
+                    }
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+
     public void hideSystemBars() {
         runOnUiThread(() -> {
             try {
@@ -105,6 +150,8 @@ public class MainActivity extends BridgeActivity {
                         | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_FULLSCREEN
                     );
+
+                    injectSafeInsets();
                 }
             } catch (Exception ignored) {}
         });
@@ -115,6 +162,7 @@ public class MainActivity extends BridgeActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             hideSystemBars();
+            injectSafeInsets();
         }
     }
 
@@ -149,6 +197,8 @@ public class MainActivity extends BridgeActivity {
                         e.printStackTrace();
                     }
                 });
+                webView.postDelayed(this::injectSafeInsets, 300);
+                webView.postDelayed(this::injectSafeInsets, 1000);
             }
         } catch (Exception ignored) {}
     }
@@ -157,6 +207,7 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         hideSystemBars();
+        injectSafeInsets();
         try {
             WebView webView = this.getBridge().getWebView();
             if (webView != null) {
@@ -165,6 +216,7 @@ public class MainActivity extends BridgeActivity {
                 settings.setJavaScriptCanOpenWindowsAutomatically(false);
                 settings.setSupportMultipleWindows(false);
                 settings.setTextZoom(100);
+                webView.postDelayed(this::injectSafeInsets, 300);
             }
         } catch (Exception ignored) {}
     }
@@ -225,6 +277,15 @@ public class MainActivity extends BridgeActivity {
                     call.reject(e.getMessage());
                 }
             });
+        }
+
+        @PluginMethod
+        public void getSafeInsets(PluginCall call) {
+            MainActivity act = (MainActivity) getActivity();
+            int top = act != null ? act.getSafeTopInsetDp() : 36;
+            JSObject ret = new JSObject();
+            ret.put("top", top);
+            call.resolve(ret);
         }
     }
 
