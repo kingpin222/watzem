@@ -8,24 +8,14 @@ A high-performance, mobile-first Movie & TV streaming app built powered by the *
 
 - **Movies 🎬 & TV Shows 📺 Switcher**: Fast toggle between movie catalog and TV series with real-time category updates.
 - **Dynamic Trending Hero Banner**: Highlighting top trending titles with backdrop art, ratings, and quick actions.
-- **Direct Stream Player (VidSrc)**: Built-in HD streaming player with TV season and episode selection.
-- **Torrents & Magnet Links Aggregator**:
-  - Live indexed torrent sources (The Pirate Bay, 1337x, RuTracker, Knaben, EZTV).
-  - Seeders, leechers, file size breakdown, and quality badges (4K UHD, 1080P, 720P, SD).
-  - One-tap **Copy Magnet Link** with haptic feedback and confirmation badge.
-  - Direct `magnet:` app launch link for mobile torrent clients (LibreTorrent, Flud, µTorrent).
+- **Direct Stream Player**: Built-in HD streaming player with TV season and episode selection.
 - **Comprehensive Explore Catalog**:
   - **Streaming Networks**: Netflix, HBO / Max, Disney+, Prime Video, Apple TV+, Hulu, Paramount+, Peacock.
   - **Genres**: Action, Adventure, Animation, Comedy, Crime, Sci-Fi, Horror, Fantasy, etc.
   - **Movie Franchises**: The Avengers, Harry Potter, Star Wars, James Bond, Fast & Furious, John Wick, Matrix, etc.
   - **Studios**: Marvel Studios, Pixar, A24, Studio Ghibli, Warner Bros, Disney.
 - **Instant Search**: Debounced search with suggestions (Deadpool, Dune, Oppenheimer, Anime, etc.).
-- **Watchlist / Bookmarks**: Save favorites locally using persistent storage.
-- **Mobile-First Design & Safe Area**:
-  - Dark cinematic obsidian theme (`#07070a`) with glowing accent colors.
-  - Bottom navigation bar designed for one-handed mobile touch.
-  - Notch / Dynamic Island and gesture navigation safe-area padding.
-  - Capacitor native status bar and haptic feedback support.
+- **Watchlist / Bookmarks**: Save favorites locally using persistent storage
 
 ---
 
