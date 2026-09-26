@@ -309,21 +309,8 @@ const SERVERS: StreamServerDef[] = [
     }
   },
   {
-    id: 'server7',
-    name: 'Server 7',
-    shortName: 'Server 7',
-    badge: 'VidSrc SBS',
-    getUrl: (id, isTv, season, episode) => {
-      const s = season || 1;
-      const e = episode || 1;
-      return isTv
-        ? `https://vidsrc.sbs/embed/tv/${id}/${s}/${e}/`
-        : `https://vidsrc.sbs/embed/movie/${id}/`;
-    }
-  },
-  {
     id: 'server8',
-    name: 'Server 8 (CineSrc)',
+    name: 'Server 7 (CineSrc)',
     shortName: 'CineSrc',
     badge: 'VIP Auto-Skip',
     getUrl: (id, isTv, season, episode) => {
@@ -342,7 +329,7 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server9',
-    name: 'Server 9 (Nxsha)',
+    name: 'Server 8 (Nxsha)',
     shortName: 'Nxsha',
     badge: 'HD Clean',
     getUrl: (id, isTv, season, episode) => {
@@ -355,7 +342,7 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server10',
-    name: 'Server 10 (VidEasy)',
+    name: 'Server 9 (VidEasy)',
     shortName: 'VidEasy',
     badge: 'Fast VIP',
     getUrl: (id, isTv, season, episode) => {

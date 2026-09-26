@@ -321,32 +321,24 @@ app.get('/api/stream/probe', async (req: Request, res: Response) => {
       },
       {
         index: 6,
-        id: 'server7',
-        name: 'Server 7',
-        url: isTv
-          ? `https://vidsrc.sbs/embed/tv/${id}/${season || 1}/${episode || 1}/`
-          : `https://vidsrc.sbs/embed/movie/${id}/`
-      },
-      {
-        index: 7,
         id: 'server8',
-        name: 'Server 8 (CineSrc)',
+        name: 'Server 7 (CineSrc)',
         url: isTv
           ? `https://cinesrc.st/embed/tv/${id}?s=${season || 1}&e=${episode || 1}&color=%23f59e0b&autoskip=true&autonext=true`
           : `https://cinesrc.st/embed/movie/${id}?color=%23f59e0b&autoskip=true`
       },
       {
-        index: 8,
+        index: 7,
         id: 'server9',
-        name: 'Server 9 (Nxsha)',
+        name: 'Server 8 (Nxsha)',
         url: isTv
           ? `https://web.nxsha.app/embed/tv/${id}/${season || 1}/${episode || 1}`
           : `https://web.nxsha.app/embed/movie/${id}`
       },
       {
-        index: 9,
+        index: 8,
         id: 'server10',
-        name: 'Server 10 (VidEasy)',
+        name: 'Server 9 (VidEasy)',
         url: isTv
           ? `https://player.videasy.to/tv/${id}/${season || 1}/${episode || 1}`
           : `https://player.videasy.to/movie/${id}`
