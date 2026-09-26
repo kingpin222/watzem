@@ -41,7 +41,8 @@ import {
   Check,
   Maximize,
   Tv,
-  PictureInPicture
+  PictureInPicture,
+  AlertCircle
 } from 'lucide-vue-next';
 
 const props = withDefaults(
@@ -372,10 +373,17 @@ const probeAndSetDefaultServer = async () => {
 
 const fallbackNotice = ref('');
 let fallbackNoticeTimer: any = null;
-let watchdogTimer: any = null;
-let probeAbortController: AbortController | null = null;
+let connectionWatchdogTimer: any = null;
+let streamGraceTimer: any = null;
+
 const isStreamLoading = ref(false);
+const isIframeLoaded = ref(false);
+const isStreamHealthy = ref(false);
 const showServerMenu = ref(false);
+
+// Smart failure memory & exhaustion tracking
+const failedServerIndices = ref<Set<number>>(new Set());
+const allServersExhausted = ref(false);
 
 const activeServer = computed(() => SERVERS[activeServerIndex.value] || SERVERS[0]);
 
@@ -388,28 +396,98 @@ const showFallbackNotice = (msg: string) => {
 };
 
 const clearWatchdog = () => {
-  if (watchdogTimer) {
-    clearTimeout(watchdogTimer);
-    watchdogTimer = null;
+  if (connectionWatchdogTimer) {
+    clearTimeout(connectionWatchdogTimer);
+    connectionWatchdogTimer = null;
   }
-  if (probeAbortController) {
-    probeAbortController.abort();
-    probeAbortController = null;
+  if (streamGraceTimer) {
+    clearTimeout(streamGraceTimer);
+    streamGraceTimer = null;
   }
   isStreamLoading.value = false;
 };
 
+/**
+ * Intelligent next server selection:
+ * 1. Excludes servers that already failed in the current session
+ * 2. Prioritizes candidate mirrors verified online via probe (sorted by lowest latency)
+ * 3. Falls back to next untried server in natural order
+ * 4. Returns null when all 7 servers have been exhausted
+ */
+const getNextBestServerIndex = (currentIndex: number): number | null => {
+  const untriedIndices: number[] = [];
+  for (let i = 0; i < SERVERS.length; i++) {
+    if (!failedServerIndices.value.has(i)) {
+      untriedIndices.push(i);
+    }
+  }
+
+  if (untriedIndices.length === 0) {
+    return null;
+  }
+
+  // Find untried servers that were verified online by probe
+  const verifiedOnline = untriedIndices.filter(
+    (idx) => serverStatusMap.value[idx] === true
+  );
+
+  if (verifiedOnline.length > 0) {
+    verifiedOnline.sort((a, b) => {
+      const latA = serverLatencies.value[a] ?? 9999;
+      const latB = serverLatencies.value[b] ?? 9999;
+      return latA - latB;
+    });
+    return verifiedOnline[0];
+  }
+
+  // Otherwise pick next available untried server
+  const nextInSequence = untriedIndices.find((idx) => idx > currentIndex);
+  if (nextInSequence !== undefined) {
+    return nextInSequence;
+  }
+
+  return untriedIndices[0];
+};
+
+/**
+ * Smart automatic fallback:
+ * Switches to the next verified/untried server or enters exhausted state
+ */
 const triggerNextFallback = (reason = 'Server unresponsive') => {
   clearWatchdog();
-  const prevName = activeServer.value.name;
-  if (activeServerIndex.value < SERVERS.length - 1) {
-    activeServerIndex.value += 1;
-    const nextName = SERVERS[activeServerIndex.value].name;
-    showFallbackNotice(`Switched to ${nextName} (${prevName}: ${reason})`);
-  } else {
-    activeServerIndex.value = 0;
-    showFallbackNotice(`Re-trying Server 1 (${prevName}: ${reason})`);
+  const prevIdx = activeServerIndex.value;
+  const prevName = SERVERS[prevIdx]?.name || `Server ${prevIdx + 1}`;
+  failedServerIndices.value.add(prevIdx);
+
+  const nextIdx = getNextBestServerIndex(prevIdx);
+
+  if (nextIdx === null) {
+    allServersExhausted.value = true;
+    showFallbackNotice(`All ${SERVERS.length} servers attempted • Select manually or retry`);
+    console.warn(`[StreamPlayer] All servers exhausted for this item (${reason}).`);
+    return;
   }
+
+  allServersExhausted.value = false;
+  activeServerIndex.value = nextIdx;
+  const nextName = SERVERS[nextIdx].name;
+  showFallbackNotice(`Auto-switched to ${nextName} (${prevName}: ${reason})`);
+  console.info(`[StreamPlayer] Auto-switched from ${prevName} to ${nextName} (${reason})`);
+
+  if (isPlaying.value) {
+    startWatchdog();
+  }
+};
+
+/**
+ * Reset all failed server states and restart from Server 1
+ */
+const retryAllServers = () => {
+  failedServerIndices.value.clear();
+  allServersExhausted.value = false;
+  userManuallySelectedServer.value = false;
+  activeServerIndex.value = 0;
+  showFallbackNotice(`Retrying ${SERVERS[0].name}...`);
   if (isPlaying.value) {
     startWatchdog();
   }
@@ -418,6 +496,8 @@ const triggerNextFallback = (reason = 'Server unresponsive') => {
 const selectServer = (idx: number) => {
   if (idx < 0 || idx >= SERVERS.length) return;
   userManuallySelectedServer.value = true;
+  failedServerIndices.value.delete(idx);
+  allServersExhausted.value = false;
   clearWatchdog();
   activeServerIndex.value = idx;
   showServerMenu.value = false;
@@ -434,55 +514,69 @@ const nextServerManual = () => {
   selectServer(nextIdx);
 };
 
-// Network probe to detect connection refused (ERR_CONNECTION_REFUSED) instantly
-const probeCurrentServer = async (url: string, expectedIndex: number) => {
-  if (typeof window === 'undefined' || !window.fetch) return;
-  try {
-    if (probeAbortController) probeAbortController.abort();
-    probeAbortController = new AbortController();
-    const timeoutId = setTimeout(() => probeAbortController?.abort(), 3500);
-    // mode: 'no-cors' allows detecting connection refusal or DNS drop without CORS blocking
-    await fetch(url, {
-      method: 'GET',
-      mode: 'no-cors',
-      signal: probeAbortController.signal,
-      cache: 'no-cache'
-    });
-    clearTimeout(timeoutId);
-  } catch (err: any) {
-    // If the index changed or player was stopped, do nothing
-    if (activeServerIndex.value !== expectedIndex || !isPlaying.value) return;
-    console.warn(`[StreamPlayer] Server probe failed for ${SERVERS[expectedIndex].name}:`, err);
-    triggerNextFallback('Connection refused / unreachable');
+const markStreamHealthy = () => {
+  isStreamHealthy.value = true;
+  isStreamLoading.value = false;
+  if (connectionWatchdogTimer) {
+    clearTimeout(connectionWatchdogTimer);
+    connectionWatchdogTimer = null;
+  }
+  if (streamGraceTimer) {
+    clearTimeout(streamGraceTimer);
+    streamGraceTimer = null;
+  }
+  if (serverStatusMap.value[activeServerIndex.value] === undefined) {
+    serverStatusMap.value[activeServerIndex.value] = true;
   }
 };
 
+/**
+ * Smart Two-Phase Watchdog:
+ * Phase 1: 10s window to establish connection & receive HTML frame load
+ * Phase 2: 7s post-load buffer grace period for media playback signals
+ */
 const startWatchdog = () => {
   clearWatchdog();
   if (!isPlaying.value) return;
 
   isStreamLoading.value = true;
+  isIframeLoaded.value = false;
+  isStreamHealthy.value = false;
   const currentIndex = activeServerIndex.value;
-  const currentUrl = streamUrl.value;
 
-  // 1. Proactive network probe (instantly catches ERR_CONNECTION_REFUSED)
-  probeCurrentServer(currentUrl, currentIndex);
-
-  // 2. Watchdog timeout: if iframe has not finished loading after 7 seconds, auto-switch
-  watchdogTimer = setTimeout(() => {
-    if (activeServerIndex.value === currentIndex && isPlaying.value && isStreamLoading.value) {
-      console.warn(`[StreamPlayer] Watchdog timeout for ${SERVERS[currentIndex].name}`);
-      triggerNextFallback('Load timed out (7s)');
+  // Phase 1: Connection timeout
+  connectionWatchdogTimer = setTimeout(() => {
+    if (activeServerIndex.value === currentIndex && isPlaying.value && !isIframeLoaded.value) {
+      console.warn(`[StreamPlayer] Connection timeout (10s) on ${SERVERS[currentIndex].name}`);
+      triggerNextFallback('Connection timed out (10s)');
     }
-  }, 7000);
+  }, 10000);
 };
 
 const handleIframeLoad = () => {
-  isStreamLoading.value = false;
-  if (watchdogTimer) {
-    clearTimeout(watchdogTimer);
-    watchdogTimer = null;
+  isIframeLoaded.value = true;
+  if (connectionWatchdogTimer) {
+    clearTimeout(connectionWatchdogTimer);
+    connectionWatchdogTimer = null;
   }
+
+  const currentIndex = activeServerIndex.value;
+
+  // Phase 2: Post-load buffer grace period (7 seconds)
+  if (streamGraceTimer) clearTimeout(streamGraceTimer);
+  streamGraceTimer = setTimeout(() => {
+    if (
+      activeServerIndex.value === currentIndex &&
+      isPlaying.value &&
+      !isStreamHealthy.value &&
+      isStreamLoading.value
+    ) {
+      console.warn(`[StreamPlayer] Stream buffering stalled on ${SERVERS[currentIndex].name}`);
+      triggerNextFallback('Stream buffering stalled');
+    } else {
+      isStreamLoading.value = false;
+    }
+  }, 7000);
 };
 
 const handleIframeError = () => {
@@ -510,15 +604,41 @@ const handleWindowMessage = (event: MessageEvent) => {
         triggerNextFallback('CineSrc playback error');
         return;
       }
+      if (data.type === 'cinesrc:ready' || data.type === 'cinesrc:playing') {
+        markStreamHealthy();
+        return;
+      }
     }
 
-    if (
-      data.type === 'ERROR' ||
-      data.event === 'error' ||
-      data.type === 'PLAYER_ERROR' ||
-      data.error === true
-    ) {
-      triggerNextFallback('Stream playback error');
+    const eventType = String(data.type || data.event || data.status || '').toLowerCase();
+
+    // Positive playback signals (stream confirmed playing & working)
+    const isSuccessSignal =
+      eventType === 'playing' ||
+      eventType === 'play' ||
+      eventType === 'timeupdate' ||
+      eventType === 'ready' ||
+      eventType === 'player:ready' ||
+      eventType === 'jwplayer.ready' ||
+      eventType === 'firstframe' ||
+      eventType === 'media_data' ||
+      data.status === 'playing';
+
+    if (isSuccessSignal) {
+      markStreamHealthy();
+      return;
+    }
+
+    // Explicit error signals
+    const isErrorSignal =
+      eventType === 'error' ||
+      eventType === 'player_error' ||
+      eventType === 'media_error' ||
+      eventType === 'hlserror' ||
+      data.error === true;
+
+    if (isErrorSignal) {
+      triggerNextFallback('Stream error reported by player');
     }
   } catch {}
 };
@@ -635,6 +755,7 @@ const stopAndClose = async () => {
   isClosing.value = true;
   triggerLight();
   clearWatchdog();
+  allServersExhausted.value = false;
   showServerMenu.value = false;
 
   // Hide the fullscreen overlay first (instant)
@@ -890,6 +1011,8 @@ watch(
   async () => {
     stopAndClose();
     clearWatchdog();
+    failedServerIndices.value.clear();
+    allServersExhausted.value = false;
     userManuallySelectedServer.value = false;
     recommendedServerIndex.value = null;
     serverLatencies.value = {};
@@ -906,6 +1029,8 @@ watch(
 );
 
 watch([currentSeason, currentEpisode], () => {
+  failedServerIndices.value.clear();
+  allServersExhausted.value = false;
   probeAndSetDefaultServer();
 });
 </script>
@@ -1019,6 +1144,27 @@ watch([currentSeason, currentEpisode], () => {
           @load="handleIframeLoad"
           @error="handleIframeError"
         ></iframe>
+
+        <!-- Exhausted Servers Overlay (Inline) -->
+        <transition name="hint-fade">
+          <div v-if="allServersExhausted" class="exhausted-screen-overlay">
+            <div class="exhausted-card">
+              <AlertCircle :size="28" class="exhausted-card-icon" />
+              <h4 class="exhausted-card-title">All 7 Servers Attempted</h4>
+              <p class="exhausted-card-desc">No active stream responded across current mirrors for this title.</p>
+              <div class="exhausted-btn-row">
+                <button class="exhausted-retry-btn" @click.stop="retryAllServers">
+                  <RotateCw :size="13" />
+                  Retry Server 1
+                </button>
+                <button class="exhausted-pick-btn" @click.stop="showServerMenu = true">
+                  <Server :size="13" />
+                  Choose Server
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
 
         <!-- Top Inline Controls -->
         <div class="inline-top-bar">
@@ -1279,6 +1425,27 @@ watch([currentSeason, currentEpisode], () => {
             @load="handleIframeLoad"
             @error="handleIframeError"
           ></iframe>
+
+          <!-- Exhausted Servers Overlay (Theater Mode) -->
+          <transition name="hint-fade">
+            <div v-if="allServersExhausted" class="exhausted-screen-overlay" @click.stop>
+              <div class="exhausted-card">
+                <AlertCircle :size="36" class="exhausted-card-icon" />
+                <h3 class="exhausted-card-title">All 7 Mirrors Attempted</h3>
+                <p class="exhausted-card-desc">None of the available streaming mirrors responded in time for this title.</p>
+                <div class="exhausted-btn-row">
+                  <button class="exhausted-retry-btn" @click.stop="retryAllServers">
+                    <RotateCw :size="15" />
+                    Retry Server 1
+                  </button>
+                  <button class="exhausted-pick-btn" @click.stop="showServerMenu = true">
+                    <Server :size="15" />
+                    Choose Mirror
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
         </div>
       </div>
     </Teleport>
@@ -2653,4 +2820,89 @@ watch([currentSeason, currentEpisode], () => {
 .trailer-fade-leave-active  { transition: opacity 0.2s ease;  }
 .trailer-fade-enter-from,
 .trailer-fade-leave-to { opacity: 0; }
+
+/* Exhausted Mirrors Overlay */
+.exhausted-screen-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 15, 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1.5rem;
+}
+
+.exhausted-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  max-width: 320px;
+}
+
+.exhausted-card-icon {
+  color: #f59e0b;
+  margin-bottom: 0.25rem;
+}
+
+.exhausted-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main, #ffffff);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.exhausted-card-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted, #9ca3af);
+  line-height: 1.45;
+  margin: 0 0 0.5rem 0;
+}
+
+.exhausted-btn-row {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.exhausted-retry-btn,
+.exhausted-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.exhausted-retry-btn {
+  background: #f59e0b;
+  color: #000000;
+  border: none;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+.exhausted-retry-btn:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+.exhausted-pick-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.exhausted-pick-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
 </style>
