@@ -260,29 +260,12 @@
           };
         } catch (_) {}
 
-        /* 5. Anti-Frame Busting: Prevent third-party embedded players from hijacking top window */
+        /* 5. Neutralize beforeunload traps so navigation confirmation dialogs never appear */
         try {
-          var isUserNavigating = false;
-          window.addEventListener('click', function(e) {
-            var t = e.target;
-            while (t && t !== document.body) {
-              if (t.tagName === 'A' && (t.href || '').indexOf(window.location.origin) === 0) {
-                isUserNavigating = true;
-                setTimeout(function() { isUserNavigating = false; }, 1000);
-                break;
-              }
-              t = t.parentElement;
-            }
-          }, true);
-
+          window.onbeforeunload = null;
           window.addEventListener('beforeunload', function(e) {
-            var hasPlayer = document.querySelector('.stream-iframe, .fullscreen-iframe');
-            if (hasPlayer && !isUserNavigating) {
-              e.preventDefault();
-              e.returnValue = '';
-              return '';
-            }
-          });
+            delete e['returnValue'];
+          }, true);
         } catch (_) {}
 
         /* 6. Popunder blur-focus trap: re-focus main window if an iframe click triggers window blur */

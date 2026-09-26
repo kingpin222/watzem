@@ -10,6 +10,8 @@ import android.os.Bundle;
 import android.util.Rational;
 import android.view.View;
 import android.view.Window;
+import android.webkit.JsPromptResult;
+import android.webkit.JsResult;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.core.view.WindowCompat;
@@ -17,6 +19,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebChromeClient;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -31,6 +34,47 @@ public class MainActivity extends BridgeActivity {
 
     public static void setPlayingMedia(boolean playing) {
         isPlayingMedia = playing;
+    }
+
+    public static class CustomWebChromeClient extends BridgeWebChromeClient {
+        public CustomWebChromeClient(Bridge bridge) {
+            super(bridge);
+        }
+
+        @Override
+        public boolean onJsBeforeUnload(WebView view, String url, String message, JsResult result) {
+            // Automatically confirm navigation and suppress "Confirm Navigation / Changes you made may not be saved" dialogs
+            if (result != null) {
+                result.confirm();
+            }
+            return true;
+        }
+
+        @Override
+        public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
+            // Suppress nuisance / rogue ad alerts from embedded players
+            if (result != null) {
+                result.confirm();
+            }
+            return true;
+        }
+
+        @Override
+        public boolean onJsConfirm(WebView view, String url, String message, JsResult result) {
+            // Suppress nuisance confirm dialogs from embedded players
+            if (result != null) {
+                result.cancel();
+            }
+            return true;
+        }
+
+        @Override
+        public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+            if (result != null) {
+                result.cancel();
+            }
+            return true;
+        }
     }
 
     @Override
@@ -50,6 +94,8 @@ public class MainActivity extends BridgeActivity {
                 settings.setJavaScriptCanOpenWindowsAutomatically(false);
                 settings.setSupportMultipleWindows(false);
                 settings.setTextZoom(100);
+
+                webView.setWebChromeClient(new CustomWebChromeClient(this.getBridge()));
 
                 webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
                     try {

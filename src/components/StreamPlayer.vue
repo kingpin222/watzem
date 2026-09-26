@@ -310,7 +310,7 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server8',
-    name: 'Server 7 (CineSrc)',
+    name: 'Server 7',
     shortName: 'CineSrc',
     badge: 'VIP Auto-Skip',
     getUrl: (id, isTv, season, episode) => {
@@ -329,7 +329,7 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server9',
-    name: 'Server 8 (Nxsha)',
+    name: 'Server 8',
     shortName: 'Nxsha',
     badge: 'HD Clean',
     getUrl: (id, isTv, season, episode) => {
@@ -342,7 +342,7 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server10',
-    name: 'Server 9 (VidEasy)',
+    name: 'Server 9',
     shortName: 'VidEasy',
     badge: 'Fast VIP',
     getUrl: (id, isTv, season, episode) => {

@@ -635,29 +635,12 @@ export function initAdBlocker(): void {
     (document.head || document.documentElement).appendChild(styleEl);
   } catch (_) {}
 
-  // ── 8. Anti-Frame Busting & Tab Focus Guard ─────────────────────────────────
+  // ── 8. Anti-Navigation Trap & Focus Guard ────────────────────────────────────
   try {
-    let isUserNavigating = false;
-    document.addEventListener('click', (e) => {
-      let t = e.target as HTMLElement | null;
-      while (t && t !== document.body) {
-        if (t.tagName === 'A' && (t as HTMLAnchorElement).href.startsWith(window.location.origin)) {
-          isUserNavigating = true;
-          setTimeout(() => { isUserNavigating = false; }, 1000);
-          break;
-        }
-        t = t.parentElement;
-      }
-    }, true);
-
+    window.onbeforeunload = null;
     window.addEventListener('beforeunload', (e) => {
-      const hasPlayer = document.querySelector('.stream-iframe, .fullscreen-iframe');
-      if (hasPlayer && !isUserNavigating) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
-    });
+      delete (e as any).returnValue;
+    }, true);
 
     window.addEventListener('blur', () => {
       const hasPlayer = document.querySelector('.stream-iframe, .fullscreen-iframe');
