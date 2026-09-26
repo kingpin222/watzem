@@ -326,6 +326,14 @@ app.get('/api/stream/probe', async (req: Request, res: Response) => {
         url: isTv
           ? `https://vidsrc.sbs/embed/tv/${id}/${season || 1}/${episode || 1}/`
           : `https://vidsrc.sbs/embed/movie/${id}/`
+      },
+      {
+        index: 7,
+        id: 'server8',
+        name: 'Server 8 (CineSrc)',
+        url: isTv
+          ? `https://cinesrc.st/embed/tv/${id}?s=${season || 1}&e=${episode || 1}&color=%23f59e0b&autoskip=true&autonext=true`
+          : `https://cinesrc.st/embed/movie/${id}?color=%23f59e0b&autoskip=true`
       }
     ];
 

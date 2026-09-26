@@ -320,6 +320,25 @@ const SERVERS: StreamServerDef[] = [
         ? `https://vidsrc.sbs/embed/tv/${id}/${s}/${e}/`
         : `https://vidsrc.sbs/embed/movie/${id}/`;
     }
+  },
+  {
+    id: 'server8',
+    name: 'Server 8 (CineSrc)',
+    shortName: 'CineSrc',
+    badge: 'VIP Auto-Skip',
+    getUrl: (id, isTv, season, episode) => {
+      const s = season || 1;
+      const e = episode || 1;
+      const params = new URLSearchParams({
+        autoplay: 'true',
+        color: '#f59e0b',
+        autonext: 'true',
+        autoskip: 'true'
+      });
+      return isTv
+        ? `https://cinesrc.st/embed/tv/${id}?s=${s}&e=${e}&${params.toString()}`
+        : `https://cinesrc.st/embed/movie/${id}?${params.toString()}`;
+    }
   }
 ];
 
@@ -484,12 +503,31 @@ const handleIframeError = () => {
 const handleWindowMessage = (event: MessageEvent) => {
   try {
     const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    if (!data) return;
+
+    // CineSrc specific integration
+    if (event.origin && event.origin.includes('cinesrc.st')) {
+      if (data.type === 'cinesrc:nextepisode' && data.season && data.episode) {
+        currentSeason.value = Number(data.season);
+        currentEpisode.value = Number(data.episode);
+        emit('episode-change', { season: currentSeason.value, episode: currentEpisode.value });
+        return;
+      }
+      if (data.type === 'cinesrc:close') {
+        stopAndClose();
+        return;
+      }
+      if (data.type === 'cinesrc:error') {
+        triggerNextFallback('CineSrc playback error');
+        return;
+      }
+    }
+
     if (
-      data &&
-      (data.type === 'ERROR' ||
-        data.event === 'error' ||
-        data.type === 'PLAYER_ERROR' ||
-        data.error === true)
+      data.type === 'ERROR' ||
+      data.event === 'error' ||
+      data.type === 'PLAYER_ERROR' ||
+      data.error === true
     ) {
       triggerNextFallback('Stream playback error');
     }
