@@ -352,6 +352,19 @@ const SERVERS: StreamServerDef[] = [
         ? `https://web.nxsha.app/embed/tv/${id}/${s}/${e}?autoplay=1`
         : `https://web.nxsha.app/embed/movie/${id}?autoplay=1`;
     }
+  },
+  {
+    id: 'server10',
+    name: 'Server 10 (VidEasy)',
+    shortName: 'VidEasy',
+    badge: 'Fast VIP',
+    getUrl: (id, isTv, season, episode) => {
+      const s = season || 1;
+      const e = episode || 1;
+      return isTv
+        ? `https://player.videasy.to/tv/${id}/${s}/${e}`
+        : `https://player.videasy.to/movie/${id}`;
+    }
   }
 ];
 

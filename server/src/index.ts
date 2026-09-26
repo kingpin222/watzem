@@ -342,6 +342,14 @@ app.get('/api/stream/probe', async (req: Request, res: Response) => {
         url: isTv
           ? `https://web.nxsha.app/embed/tv/${id}/${season || 1}/${episode || 1}`
           : `https://web.nxsha.app/embed/movie/${id}`
+      },
+      {
+        index: 9,
+        id: 'server10',
+        name: 'Server 10 (VidEasy)',
+        url: isTv
+          ? `https://player.videasy.to/tv/${id}/${season || 1}/${episode || 1}`
+          : `https://player.videasy.to/movie/${id}`
       }
     ];
 
