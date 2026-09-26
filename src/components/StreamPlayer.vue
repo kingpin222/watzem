@@ -886,8 +886,27 @@ const stopAndClose = async () => {
 };
 
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && (isFullscreen.value || isPlaying.value)) {
-    stopAndClose();
+  const key = e.key;
+  const keyCode = e.keyCode || e.which;
+
+  if (isPlaying.value || isFullscreen.value) {
+    showControls.value = true;
+    resetControlsTimeout();
+  }
+
+  // Back button (Escape, Android Back keyCode 4)
+  if (key === 'Escape' || keyCode === 27 || keyCode === 4) {
+    if (showServerMenu.value) {
+      showServerMenu.value = false;
+      return;
+    }
+    if (showEpisodesMenu.value) {
+      showEpisodesMenu.value = false;
+      return;
+    }
+    if (isFullscreen.value || isPlaying.value) {
+      stopAndClose();
+    }
   }
 };
 

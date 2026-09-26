@@ -19,6 +19,10 @@ import WatchlistView from './views/WatchlistView.vue';
 import ApkDownloadView from './views/ApkDownloadView.vue';
 import { useAppUpdate } from './composables/useAppUpdate';
 import { useHeroBackground } from './composables/useHeroBackground';
+import { useTvMode } from './composables/useTvMode';
+import { useMonetization } from './composables/useMonetization';
+import { tvSpatialNav } from './services/tvSpatialNav';
+import TvSidebar from './components/tv/TvSidebar.vue';
 
 // App global state
 const showSplash = ref(true);
@@ -29,6 +33,8 @@ const selectedItem = ref<MediaItem | null>(null);
 const initialPlayState = ref(false);
 const { checkForUpdate, updateInfo, showUpdateModal } = useAppUpdate();
 const { activeHeroBackdrop, isHeroActive } = useHeroBackground();
+const { isTvMode } = useTvMode();
+const { openSupportModal } = useMonetization();
 
 // Android Web Detection & Redirection
 const isNative = Capacitor.isNativePlatform();
@@ -183,6 +189,19 @@ onMounted(() => {
     // Ignore in web browser
   }
 
+  // Register D-pad back navigation for Android TV remotes
+  tvSpatialNav.registerBackHandler(() => {
+    if (currentTab.value === 'details') {
+      closeDetail();
+      return true;
+    }
+    if (currentTab.value !== 'home') {
+      handleNavigate('home');
+      return true;
+    }
+    return false;
+  });
+
   // Check for in-app version update if running on native platform or test query
   try {
     if (isNative || (urlParams && urlParams.get('test_update') === '1')) {
@@ -236,9 +255,19 @@ onMounted(() => {
     <!-- Creator Support & Community Tips Modal -->
     <SupportModal />
 
-    <!-- Header (Hidden on dedicated APK download landing page and Movie Details page) -->
+    <!-- Android TV Left Sidebar Navigation (Only visible in Android TV mode) -->
+    <TvSidebar
+      v-if="isTvMode && currentTab !== 'download'"
+      :current-tab="currentTab"
+      :mode="currentMode"
+      @navigate="handleNavigate"
+      @update:mode="handleModeChange"
+      @open-support="openSupportModal"
+    />
+
+    <!-- Header (Hidden in Android TV mode, APK download landing page, and Movie Details page) -->
     <TopHeader
-      v-if="currentTab !== 'download' && currentTab !== 'details'"
+      v-if="!isTvMode && currentTab !== 'download' && currentTab !== 'details'"
       :mode="currentMode"
       :current-tab="currentTab"
       @update:mode="handleModeChange"
@@ -271,9 +300,9 @@ onMounted(() => {
       </Transition>
     </main>
 
-    <!-- Mobile Bottom Navigation Bar (Hidden on dedicated APK download landing page) -->
+    <!-- Mobile Bottom Navigation Bar (Hidden in Android TV mode and on dedicated APK download landing page) -->
     <BottomNav
-      v-if="currentTab !== 'download'"
+      v-if="!isTvMode && currentTab !== 'download'"
       :current-tab="currentTab"
       :mode="currentMode"
       @navigate="handleNavigate"

@@ -69,13 +69,20 @@ if (fs.existsSync(packageJsonPath)) {
   console.log(`📄 [Auto-Bump] package.json version updated to: ${newVersion}`);
 }
 
-// 6. Update android/app/build.gradle
-if (fs.existsSync(gradlePath)) {
-  let gradle = fs.readFileSync(gradlePath, 'utf-8');
-  gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${newCode}`);
-  gradle = gradle.replace(/versionName\s+"[^"]+"/, `versionName "${newVersion}"`);
-  fs.writeFileSync(gradlePath, gradle);
-  console.log(`🤖 [Auto-Bump] android/app/build.gradle updated: versionCode ${newCode}, versionName "${newVersion}"`);
+// 6. Update android/app/build.gradle and android-tv/app/build.gradle
+const gradlePaths = [
+  path.join(projectRoot, 'android/app/build.gradle'),
+  path.join(projectRoot, 'android-tv/app/build.gradle')
+];
+
+for (const gPath of gradlePaths) {
+  if (fs.existsSync(gPath)) {
+    let gradle = fs.readFileSync(gPath, 'utf-8');
+    gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${newCode}`);
+    gradle = gradle.replace(/versionName\s+"[^"]+"/, `versionName "${newVersion}"`);
+    fs.writeFileSync(gPath, gradle);
+    console.log(`🤖 [Auto-Bump] ${path.relative(projectRoot, gPath)} updated: versionCode ${newCode}, versionName "${newVersion}"`);
+  }
 }
 
 console.log(`✅ [Auto-Bump] Successfully bumped to v${newVersion} (versionCode: ${newCode})\n`);

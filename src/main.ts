@@ -1,14 +1,31 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import './styles/main.css';
+import './styles/tv.css';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
 import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { initAdBlocker } from './utils/adBlocker';
+import { tvSpatialNav } from './services/tvSpatialNav';
 
 // Initialize in-app Ad and Popup Blocker Engine
 initAdBlocker();
+
+// Check if running on Android TV or TV mode
+const isTv = typeof window !== 'undefined' && Boolean(
+  (window as any).__IS_ANDROID_TV__ ||
+  document.documentElement.classList.contains('is-tv-mode') ||
+  new URLSearchParams(window.location.search).get('tv') === '1' ||
+  new URLSearchParams(window.location.search).get('mode') === 'tv' ||
+  /android.*(tv|box|leanback)|googletv|smarttv|mibox|firetv|aftmm|aftt|aftm|shield/i.test(navigator.userAgent || '')
+);
+
+if (isTv) {
+  document.documentElement.classList.add('is-tv-mode');
+  // Initialize Spatial Navigation for Android TV D-Pad & remotes
+  tvSpatialNav.init();
+}
 
 // Disable browser/WebView automatic scroll restoration
 if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
@@ -31,13 +48,20 @@ async function initCapacitor() {
     await NavigationBar.hide();
   } catch {}
 
-  try {
-    await ScreenOrientation.lock({ orientation: 'portrait' });
-  } catch {
+  // On TV keep landscape; on mobile lock portrait
+  if (!isTv) {
     try {
-      if (screen.orientation && (screen.orientation as any).lock) {
-        await (screen.orientation as any).lock('portrait');
-      }
+      await ScreenOrientation.lock({ orientation: 'portrait' });
+    } catch {
+      try {
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock('portrait');
+        }
+      } catch {}
+    }
+  } else {
+    try {
+      await ScreenOrientation.lock({ orientation: 'landscape' });
     } catch {}
   }
 

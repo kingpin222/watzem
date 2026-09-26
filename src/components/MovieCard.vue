@@ -209,7 +209,15 @@ const handleClick = () => {
 </script>
 
 <template>
-  <div class="movie-card" @click="handleClick">
+  <div
+    class="movie-card"
+    tabindex="0"
+    role="button"
+    :aria-label="title"
+    @click="handleClick"
+    @keydown.enter.prevent="handleClick"
+    @keydown.space.prevent="handleClick"
+  >
     <div class="poster-container">
       <!-- Loading Skeleton with Smooth Crossfade & Pulsing Icon (only if there is an image to load) -->
       <div
