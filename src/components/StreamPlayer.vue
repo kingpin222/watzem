@@ -31,7 +31,7 @@ import { MediaItem, MediaMode, TVSeason, TVEpisode } from '../types';
 import { useApi } from '../composables/useApi';
 import { useHaptics } from '../composables/useHaptics';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { StatusBar } from '@capacitor/status-bar';
 import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 import {
   Play,
@@ -772,20 +772,17 @@ const stopAndClose = async () => {
     } catch {}
   }
 
-  // 2. Restore status bar and navigation bar
+  // 2. Maintain permanent fullscreen (keep status bar and navigation bar hidden)
   try {
     await SystemBars.exitImmersiveFullscreen();
   } catch {}
 
   try {
-    await StatusBar.show();
-    await StatusBar.setStyle({ style: Style.Dark });
-    await StatusBar.setBackgroundColor({ color: '#07070a' });
+    await StatusBar.hide();
   } catch {}
 
   try {
-    await NavigationBar.show();
-    await NavigationBar.setColor({ color: '#07070a', darkButtons: false });
+    await NavigationBar.hide();
   } catch {}
 
   // 3. Exit DOM Fullscreen
@@ -997,12 +994,12 @@ onUnmounted(async () => {
     } catch {}
   }
 
-  // Guarantee portrait mode and status bar are restored when player unmounts
+  // Guarantee portrait mode and keep fullscreen when player unmounts
   try {
     await ScreenOrientation.lock({ orientation: 'portrait' });
   } catch {}
   try {
-    await StatusBar.show();
+    await StatusBar.hide();
   } catch {}
 });
 

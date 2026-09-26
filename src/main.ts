@@ -1,7 +1,8 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import './styles/main.css';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { StatusBar } from '@capacitor/status-bar';
+import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { initAdBlocker } from './utils/adBlocker';
 
@@ -13,14 +14,15 @@ if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual';
 }
 
-// Initialize Capacitor native plugins (Default app lock: Portrait)
+// Initialize Capacitor native plugins (Default: Fullscreen - No Status Bar, No Navigation Bar)
 async function initCapacitor() {
   try {
-    await StatusBar.setStyle({ style: Style.Dark });
-    await StatusBar.setBackgroundColor({ color: '#07070a' });
-  } catch {
-    // Running in web browser or preview
-  }
+    await StatusBar.hide();
+  } catch {}
+
+  try {
+    await NavigationBar.hide();
+  } catch {}
 
   try {
     await ScreenOrientation.lock({ orientation: 'portrait' });
