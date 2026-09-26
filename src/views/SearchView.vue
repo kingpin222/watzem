@@ -47,6 +47,9 @@ const { recent, push: pushRecent, remove: removeRecent, clear: clearRecent } = u
 
 const searchQuery = ref('');
 const searchResults = ref<MediaItem[]>([]);
+const mediaSearchResults = ref<MediaItem[]>([]);
+const mediaTotalPages = ref(1);
+const searchViewMode = ref<'media' | 'actor'>('media');
 const isSearching = ref(false);
 const hasSearched = ref(false);
 const searchPage = ref(1);
@@ -70,22 +73,37 @@ const filterCreditsByCategory = (credits: MediaItem[], cat: SearchCategory) => {
 };
 
 const movieCount = computed(() => {
-  const source = activeActor.value && actorAllCredits.value.length > 0
+  const source = searchViewMode.value === 'actor' && actorAllCredits.value.length > 0
     ? actorAllCredits.value
-    : searchResults.value;
+    : mediaSearchResults.value;
   return source.filter((item) => {
     return item.media_type === 'movie' || (!item.first_air_date && !item.name);
   }).length;
 });
 
 const tvCount = computed(() => {
-  const source = activeActor.value && actorAllCredits.value.length > 0
+  const source = searchViewMode.value === 'actor' && actorAllCredits.value.length > 0
     ? actorAllCredits.value
-    : searchResults.value;
+    : mediaSearchResults.value;
   return source.filter((item) => {
     return item.media_type === 'tv' || Boolean(item.first_air_date || item.name);
   }).length;
 });
+
+const setSearchViewMode = (mode: 'media' | 'actor') => {
+  if (searchViewMode.value === mode) return;
+  triggerLight();
+  searchViewMode.value = mode;
+  searchPage.value = 1;
+  if (mode === 'actor' && activeActor.value && actorAllCredits.value.length > 0) {
+    const filtered = filterCreditsByCategory(actorAllCredits.value, activeCategory.value);
+    searchResults.value = filtered.slice(0, 20);
+    searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
+  } else {
+    searchResults.value = mediaSearchResults.value;
+    searchTotalPages.value = mediaTotalPages.value;
+  }
+};
 
 // Live trending searches — populated on mount from TMDB/IMDB source
 const suggestions = ref<string[]>([]);
@@ -95,12 +113,15 @@ const performSearch = async (query: string, page = 1) => {
   const trimmed = query.trim();
   if (trimmed.length < 2) {
     searchResults.value = [];
+    mediaSearchResults.value = [];
     activeActor.value = null;
     actorAllCredits.value = [];
+    searchViewMode.value = 'media';
     hasSearched.value = false;
     isSearching.value = false;
     searchPage.value = 1;
     searchTotalPages.value = 1;
+    mediaTotalPages.value = 1;
     return;
   }
 
@@ -126,36 +147,62 @@ const performSearch = async (query: string, page = 1) => {
       const cleanQuery = normalize(trimmed);
       const personName = personRes ? normalize(personRes.name) : '';
 
-      // Check if person is a confident match
-      const isPersonMatch = Boolean(
+      // 2. Filter & store raw media results
+      const rawMedia = (mediaRes.results || []).filter((item) => item.media_type !== 'person');
+      mediaSearchResults.value = rawMedia;
+      mediaTotalPages.value = mediaRes.total_pages || 1;
+
+      // 3. Check if any media item has an exact/prominent title match with the search query
+      const hasExactMediaTitleMatch = rawMedia.some((item) => {
+        const title = normalize(item.title || item.name || '');
+        return title === cleanQuery || title.startsWith(`${cleanQuery}:`) || title.startsWith(`${cleanQuery} `);
+      });
+
+      // 4. Strict actor match detection:
+      // An actor query is only when the query matches the actor's full name,
+      // NOT a random single word that merely appears in an actor's name (e.g. "Logan", "Barbie", "Creed")!
+      const isMultiWord = cleanQuery.split(/\s+/).length >= 2;
+      const isExactActorName = Boolean(
         personRes && (
           personName === cleanQuery ||
-          personName.includes(cleanQuery) ||
-          cleanQuery.includes(personName) ||
-          ((personRes.popularity || 0) >= 1.5 && cleanQuery.split(/\s+/).length >= 2)
+          (isMultiWord && (personName.startsWith(cleanQuery) || cleanQuery.startsWith(personName)))
         )
       );
 
-      if (isPersonMatch && personRes) {
+      // 5. Fetch actor filmography if valid actor candidate found
+      if (personRes && (isExactActorName || (personRes.popularity || 0) >= 3.0)) {
         activeActor.value = personRes;
-        const credits = await getActorCredits(personRes.id);
-        actorAllCredits.value = credits;
-        const filtered = filterCreditsByCategory(credits, activeCategory.value);
-        searchResults.value = filtered.slice(0, 20);
-        searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
-        pushRecent(personRes.name);
+        try {
+          const credits = await getActorCredits(personRes.id);
+          actorAllCredits.value = credits;
+        } catch {
+          actorAllCredits.value = [];
+        }
       } else {
         activeActor.value = null;
         actorAllCredits.value = [];
-        const filtered = (mediaRes.results || []).filter((item) => item.media_type !== 'person');
-        searchResults.value = filtered;
-        searchTotalPages.value = mediaRes.total_pages || 1;
-        if (filtered.length > 0) pushRecent(trimmed);
+      }
+
+      // 6. View mode decision:
+      // Prioritize actor view ONLY if the query is an exact actor name AND does NOT conflict with a prominent media title!
+      // (e.g. "Tom Cruise" -> actor mode)
+      // (e.g. "Logan" or "Barbie" or "Creed" -> media mode, showing the movie)
+      if (isExactActorName && !hasExactMediaTitleMatch && actorAllCredits.value.length > 0) {
+        searchViewMode.value = 'actor';
+        const filtered = filterCreditsByCategory(actorAllCredits.value, activeCategory.value);
+        searchResults.value = filtered.slice(0, 20);
+        searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
+        pushRecent(personRes!.name);
+      } else {
+        searchViewMode.value = 'media';
+        searchResults.value = rawMedia;
+        searchTotalPages.value = mediaTotalPages.value;
+        if (rawMedia.length > 0) pushRecent(trimmed);
       }
       searchPage.value = 1;
     } else {
       // Pagination for page > 1
-      if (activeActor.value && actorAllCredits.value.length > 0) {
+      if (searchViewMode.value === 'actor' && actorAllCredits.value.length > 0) {
         const filtered = filterCreditsByCategory(actorAllCredits.value, activeCategory.value);
         const start = (page - 1) * 20;
         const nextBatch = filtered.slice(start, start + 20);
@@ -169,13 +216,15 @@ const performSearch = async (query: string, page = 1) => {
       } else {
         const res = await searchMedia(trimmed, activeCategory.value, page);
         const filtered = (res.results || []).filter((item) => item.media_type !== 'person');
-        const existingIds = new Set(searchResults.value.map((x) => x.id));
+        const existingIds = new Set(mediaSearchResults.value.map((x) => x.id));
         const uniqueResults = filtered.filter((x) => !existingIds.has(x.id));
         if (uniqueResults.length > 0) {
+          mediaSearchResults.value.push(...uniqueResults);
           searchResults.value.push(...uniqueResults);
         }
         searchPage.value = page;
         searchTotalPages.value = res.total_pages || 1;
+        mediaTotalPages.value = res.total_pages || 1;
       }
     }
   } catch (err) {
@@ -191,15 +240,13 @@ const handleSelectCategory = (cat: SearchCategory) => {
   if (activeCategory.value === cat) return;
   triggerLight();
   activeCategory.value = cat;
-  if (searchQuery.value.trim().length >= 2) {
-    if (activeActor.value && actorAllCredits.value.length > 0) {
-      const filtered = filterCreditsByCategory(actorAllCredits.value, cat);
-      searchResults.value = filtered.slice(0, 20);
-      searchPage.value = 1;
-      searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
-    } else {
-      performSearch(searchQuery.value, 1);
-    }
+  if (searchViewMode.value === 'actor' && actorAllCredits.value.length > 0) {
+    const filtered = filterCreditsByCategory(actorAllCredits.value, cat);
+    searchResults.value = filtered.slice(0, 20);
+    searchPage.value = 1;
+    searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
+  } else if (searchQuery.value.trim().length >= 2) {
+    performSearch(searchQuery.value, 1);
   }
 };
 
@@ -255,11 +302,14 @@ const clearSearch = () => {
   triggerLight();
   searchQuery.value = '';
   searchResults.value = [];
+  mediaSearchResults.value = [];
   activeActor.value = null;
   actorAllCredits.value = [];
+  searchViewMode.value = 'media';
   hasSearched.value = false;
   searchPage.value = 1;
   searchTotalPages.value = 1;
+  mediaTotalPages.value = 1;
 };
 
 const pickSuggestion = (term: string) => {
@@ -287,12 +337,19 @@ const handleClearRecent = () => {
 const searchActorDirectly = async (actor: PersonSearchResult) => {
   activeActor.value = actor;
   searchQuery.value = actor.name;
+  searchViewMode.value = 'actor';
   isSearching.value = true;
   hasSearched.value = true;
   searchPage.value = 1;
   try {
-    const credits = await getActorCredits(actor.id);
+    const [credits, mediaRes] = await Promise.all([
+      getActorCredits(actor.id),
+      searchMedia(actor.name, activeCategory.value, 1)
+    ]);
     actorAllCredits.value = credits;
+    mediaSearchResults.value = (mediaRes.results || []).filter((x) => x.media_type !== 'person');
+    mediaTotalPages.value = mediaRes.total_pages || 1;
+
     const filtered = filterCreditsByCategory(credits, activeCategory.value);
     searchResults.value = filtered.slice(0, 20);
     searchTotalPages.value = Math.max(1, Math.ceil(filtered.length / 20));
@@ -309,9 +366,10 @@ const clearActorSpotlight = () => {
   triggerLight();
   activeActor.value = null;
   actorAllCredits.value = [];
-  if (searchQuery.value.trim().length >= 2) {
-    performSearch(searchQuery.value, 1);
-  }
+  searchViewMode.value = 'media';
+  searchResults.value = mediaSearchResults.value;
+  searchTotalPages.value = mediaTotalPages.value;
+  searchPage.value = 1;
 };
 
 onMounted(async () => {
@@ -487,12 +545,31 @@ watch(
         <div class="actor-details">
           <div class="actor-tag-pill font-mono">
             <Users :size="11" />
-            <span>Actor Filmography</span>
+            <span>{{ searchViewMode === 'actor' ? 'Actor Filmography' : 'Actor Match' }}</span>
           </div>
           <h2 class="actor-name font-display">{{ activeActor.name }}</h2>
           <p class="actor-summary">
             Starring in {{ movieCount }} movies and {{ tvCount }} TV series
           </p>
+          <!-- Quick switch button if media search results exist -->
+          <button
+            v-if="searchViewMode === 'actor' && mediaSearchResults.length > 0"
+            type="button"
+            class="actor-switch-pill font-mono"
+            @click="setSearchViewMode('media')"
+          >
+            <Film :size="11" />
+            <span>View {{ mediaSearchResults.length }} title{{ mediaSearchResults.length === 1 ? '' : 's' }}</span>
+          </button>
+          <button
+            v-else-if="searchViewMode === 'media'"
+            type="button"
+            class="actor-switch-pill highlight font-mono"
+            @click="setSearchViewMode('actor')"
+          >
+            <Sparkles :size="11" />
+            <span>View filmography ({{ actorAllCredits.length }} titles)</span>
+          </button>
         </div>
         <button
           type="button"
@@ -506,9 +583,32 @@ watch(
 
       <div class="results-meta">
         <div v-if="!isSearching" class="results-meta-left font-mono">
-          <span class="results-count">
-            {{ activeActor ? `Filmography (${searchResults.length} titles)` : `Found ${searchResults.length} result${searchResults.length === 1 ? '' : 's'}` }}
+          <!-- View Mode Switcher if both actor and media results exist -->
+          <div v-if="activeActor && mediaSearchResults.length > 0" class="view-mode-toggle">
+            <button
+              class="toggle-tab font-mono"
+              :class="{ active: searchViewMode === 'media' }"
+              type="button"
+              @click="setSearchViewMode('media')"
+            >
+              <Film :size="12" />
+              <span>Titles ({{ mediaSearchResults.length }})</span>
+            </button>
+            <button
+              class="toggle-tab font-mono"
+              :class="{ active: searchViewMode === 'actor' }"
+              type="button"
+              @click="setSearchViewMode('actor')"
+            >
+              <Users :size="12" />
+              <span>{{ activeActor.name }} ({{ actorAllCredits.length }})</span>
+            </button>
+          </div>
+
+          <span v-else class="results-count">
+            {{ searchViewMode === 'actor' ? `Filmography (${searchResults.length} titles)` : `Found ${searchResults.length} result${searchResults.length === 1 ? '' : 's'}` }}
           </span>
+
           <span v-if="activeCategory === 'multi' && searchResults.length > 0" class="results-breakdown">
             <span class="breakdown-tag movie">🎬 {{ movieCount }} Movies</span>
             <span class="breakdown-tag tv">📺 {{ tvCount }} TV Shows</span>
@@ -958,6 +1058,74 @@ watch(
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.25);
+}
+
+.actor-switch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding: 0.3rem 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.2s ease;
+}
+
+.actor-switch-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.actor-switch-pill.highlight {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--accent-amber);
+}
+
+.actor-switch-pill.highlight:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: var(--accent-amber);
+}
+
+.view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.toggle-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-tab.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-tab:hover:not(.active) {
+  color: var(--text-secondary);
 }
 
 /* Results */
