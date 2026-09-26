@@ -297,48 +297,32 @@ app.get('/api/stream/probe', async (req: Request, res: Response) => {
       },
       {
         index: 3,
-        id: 'server4',
-        name: 'Server 4',
-        url: isTv
-          ? `https://www.2embed.cc/embedtv/${id}?s=${season}&e=${episode}`
-          : `https://www.2embed.cc/embed/${id}`
-      },
-      {
-        index: 4,
         id: 'server5',
-        name: 'Server 5',
+        name: 'Server 4',
         url: isTv
           ? `https://vidsrc.io/embed/tv/${id}/${season}/${episode}`
           : `https://vidsrc.io/embed/movie/${id}`
       },
       {
-        index: 5,
+        index: 4,
         id: 'server6',
-        name: 'Server 6',
+        name: 'Server 5',
         url: isTv
           ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`
           : `https://multiembed.mov/?video_id=${id}&tmdb=1`
       },
       {
-        index: 6,
+        index: 5,
         id: 'server8',
-        name: 'Server 7 (CineSrc)',
+        name: 'Server 6 (CineSrc)',
         url: isTv
           ? `https://cinesrc.st/embed/tv/${id}?s=${season || 1}&e=${episode || 1}&color=%23f59e0b&autoskip=true&autonext=true`
           : `https://cinesrc.st/embed/movie/${id}?color=%23f59e0b&autoskip=true`
       },
       {
-        index: 7,
-        id: 'server9',
-        name: 'Server 8 (Nxsha)',
-        url: isTv
-          ? `https://web.nxsha.app/embed/tv/${id}/${season || 1}/${episode || 1}`
-          : `https://web.nxsha.app/embed/movie/${id}`
-      },
-      {
-        index: 8,
+        index: 6,
         id: 'server10',
-        name: 'Server 9 (VidEasy)',
+        name: 'Server 7 (VidEasy)',
         url: isTv
           ? `https://player.videasy.to/tv/${id}/${season || 1}/${episode || 1}`
           : `https://player.videasy.to/movie/${id}`

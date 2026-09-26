@@ -513,12 +513,10 @@ export class TmdbClient {
         { index: 0, id: 'server3', name: 'Server 1', ok: true, latency: 45 },
         { index: 1, id: 'server1', name: 'Server 2', ok: true, latency: 60 },
         { index: 2, id: 'server2', name: 'Server 3', ok: true, latency: 85 },
-        { index: 3, id: 'server4', name: 'Server 4', ok: true, latency: 110 },
-        { index: 4, id: 'server5', name: 'Server 5', ok: true, latency: 140 },
-        { index: 5, id: 'server6', name: 'Server 6', ok: true, latency: 170 },
-        { index: 6, id: 'server8', name: 'Server 7', ok: true, latency: 80 },
-        { index: 7, id: 'server9', name: 'Server 8', ok: true, latency: 90 },
-        { index: 8, id: 'server10', name: 'Server 9', ok: true, latency: 85 }
+        { index: 3, id: 'server5', name: 'Server 4', ok: true, latency: 140 },
+        { index: 4, id: 'server6', name: 'Server 5', ok: true, latency: 170 },
+        { index: 5, id: 'server8', name: 'Server 6', ok: true, latency: 80 },
+        { index: 6, id: 'server10', name: 'Server 7', ok: true, latency: 85 }
       ]
     };
   }

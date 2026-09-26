@@ -276,20 +276,9 @@ const SERVERS: StreamServerDef[] = [
     }
   },
   {
-    id: 'server4',
+    id: 'server5',
     name: 'Server 4',
     shortName: 'Server 4',
-    badge: 'Backup',
-    getUrl: (id, isTv, season, episode) => {
-      return isTv
-        ? `https://www.2embed.cc/embedtv/${id}?s=${season}&e=${episode}&autoplay=1`
-        : `https://www.2embed.cc/embed/${id}?autoplay=1`;
-    }
-  },
-  {
-    id: 'server5',
-    name: 'Server 5',
-    shortName: 'Server 5',
     badge: 'Alternative',
     getUrl: (id, isTv, season, episode) => {
       return isTv
@@ -299,8 +288,8 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server6',
-    name: 'Server 6',
-    shortName: 'Server 6',
+    name: 'Server 5',
+    shortName: 'Server 5',
     badge: 'Multi-Source',
     getUrl: (id, isTv, season, episode) => {
       return isTv
@@ -310,7 +299,7 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server8',
-    name: 'Server 7',
+    name: 'Server 6',
     shortName: 'CineSrc',
     badge: 'VIP Auto-Skip',
     getUrl: (id, isTv, season, episode) => {
@@ -328,21 +317,8 @@ const SERVERS: StreamServerDef[] = [
     }
   },
   {
-    id: 'server9',
-    name: 'Server 8',
-    shortName: 'Nxsha',
-    badge: 'HD Clean',
-    getUrl: (id, isTv, season, episode) => {
-      const s = season || 1;
-      const e = episode || 1;
-      return isTv
-        ? `https://web.nxsha.app/embed/tv/${id}/${s}/${e}?autoplay=1`
-        : `https://web.nxsha.app/embed/movie/${id}?autoplay=1`;
-    }
-  },
-  {
     id: 'server10',
-    name: 'Server 9',
+    name: 'Server 7',
     shortName: 'VidEasy',
     badge: 'Fast VIP',
     getUrl: (id, isTv, season, episode) => {
