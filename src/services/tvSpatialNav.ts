@@ -55,6 +55,9 @@ class TvSpatialNavManager {
     // Start Gamepad API loop for TV remotes and Bluetooth controllers
     this.startGamepadLoop();
 
+    // Expose global TV back handler for native Android bridge
+    (window as any).__WATZEM_TV_HANDLE_BACK__ = () => this.handleBackButton();
+
     // Auto-focus initial element once DOM is ready
     if (document.readyState === 'complete') {
       this.autoFocusInitial();

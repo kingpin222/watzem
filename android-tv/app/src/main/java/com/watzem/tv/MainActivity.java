@@ -196,6 +196,25 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        if (this.getBridge() != null) {
+            WebView webView = this.getBridge().getWebView();
+            if (webView != null) {
+                webView.evaluateJavascript(
+                    "(function() { return window.__WATZEM_TV_HANDLE_BACK__ ? window.__WATZEM_TV_HANDLE_BACK__() : false; })()",
+                    result -> {
+                        if ("false".equals(result) || "null".equals(result)) {
+                            runOnUiThread(MainActivity.super::onBackPressed);
+                        }
+                    }
+                );
+                return;
+            }
+        }
+        super.onBackPressed();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
         hideSystemBars();
