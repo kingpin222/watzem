@@ -339,6 +339,19 @@ const SERVERS: StreamServerDef[] = [
         ? `https://cinesrc.st/embed/tv/${id}?s=${s}&e=${e}&${params.toString()}`
         : `https://cinesrc.st/embed/movie/${id}?${params.toString()}`;
     }
+  },
+  {
+    id: 'server9',
+    name: 'Server 9 (Nxsha)',
+    shortName: 'Nxsha',
+    badge: 'HD Clean',
+    getUrl: (id, isTv, season, episode) => {
+      const s = season || 1;
+      const e = episode || 1;
+      return isTv
+        ? `https://web.nxsha.app/embed/tv/${id}/${s}/${e}?autoplay=1`
+        : `https://web.nxsha.app/embed/movie/${id}?autoplay=1`;
+    }
   }
 ];
 

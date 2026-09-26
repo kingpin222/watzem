@@ -173,6 +173,8 @@ public class MainActivity extends BridgeActivity {
             "cineflix.st",
             "a.cineflix.st",
             "a2.cineflix.st",
+            "web.nxsha.app",
+            "nxsha.app",
             "autoembed.co",
             "player.autoembed.co",
             "nextgencloudfabric.com",

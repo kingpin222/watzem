@@ -334,6 +334,14 @@ app.get('/api/stream/probe', async (req: Request, res: Response) => {
         url: isTv
           ? `https://cinesrc.st/embed/tv/${id}?s=${season || 1}&e=${episode || 1}&color=%23f59e0b&autoskip=true&autonext=true`
           : `https://cinesrc.st/embed/movie/${id}?color=%23f59e0b&autoskip=true`
+      },
+      {
+        index: 8,
+        id: 'server9',
+        name: 'Server 9 (Nxsha)',
+        url: isTv
+          ? `https://web.nxsha.app/embed/tv/${id}/${season || 1}/${episode || 1}`
+          : `https://web.nxsha.app/embed/movie/${id}`
       }
     ];
 
