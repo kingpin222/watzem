@@ -35,14 +35,7 @@ const handleModeChange = (newMode: MediaMode) => {
   <header class="top-header">
     <div class="header-content">
       <!-- Logo Brand -->
-      <div
-        class="brand"
-        tabindex="0"
-        role="button"
-        aria-label="Home"
-        @click="emit('navigate', 'home')"
-        @keydown.enter.prevent="emit('navigate', 'home')"
-      >
+      <div class="brand" @click="emit('navigate', 'home')">
         <WatzemLogo size="sm" :mode="mode" />
       </div>
 
@@ -230,20 +223,6 @@ const handleModeChange = (newMode: MediaMode) => {
 .pill-btn.active {
   color: #07070a;
   font-weight: 700;
-}
-
-.brand:focus-visible,
-.brand.tv-focused,
-.pill-btn:focus-visible,
-.pill-btn.tv-focused,
-.support-btn:focus-visible,
-.support-btn.tv-focused,
-.update-badge-btn:focus-visible,
-.update-badge-btn.tv-focused {
-  outline: 2.5px solid var(--accent-primary, #f59e0b) !important;
-  outline-offset: 2px;
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.7) !important;
-  transform: scale(1.08);
 }
 
 

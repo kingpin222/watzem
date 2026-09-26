@@ -84,20 +84,6 @@ public class MainActivity extends BridgeActivity {
         return 0;
     }
 
-    public boolean isAndroidTv() {
-        try {
-            android.app.UiModeManager uiModeManager = (android.app.UiModeManager) getSystemService(UI_MODE_SERVICE);
-            if (uiModeManager != null && uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION) {
-                return true;
-            }
-            PackageManager pm = getPackageManager();
-            return pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-                || !pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN);
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
-
     public void injectSafeInsets() {
         runOnUiThread(() -> {
             try {
@@ -105,13 +91,10 @@ public class MainActivity extends BridgeActivity {
                     WebView webView = this.getBridge().getWebView();
                     if (webView != null) {
                         int safeTop = getSafeTopInsetDp();
-                        boolean isTv = isAndroidTv();
                         String js = "(function() {"
                             + "  document.documentElement.style.setProperty('--safe-top', '" + safeTop + "px');"
                             + "  window.__ANDROID_SAFE_TOP__ = " + safeTop + ";"
-                            + "  window.__IS_ANDROID_TV__ = " + isTv + ";"
                             + "  document.documentElement.classList.add('is-native-app');"
-                            + (isTv ? "  document.documentElement.classList.add('is-tv-mode');" : "")
                             + "})();";
                         webView.evaluateJavascript(js, null);
                     }
@@ -183,11 +166,6 @@ public class MainActivity extends BridgeActivity {
                 settings.setSupportMultipleWindows(false);
                 settings.setTextZoom(100);
 
-                // Enable TV Remote D-pad focus handling
-                webView.setFocusable(true);
-                webView.setFocusableInTouchMode(true);
-                webView.requestFocus();
-
                 webView.setWebChromeClient(new CustomWebChromeClient(this.getBridge()));
 
                 webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
@@ -203,17 +181,6 @@ public class MainActivity extends BridgeActivity {
                 webView.postDelayed(this::injectSafeInsets, 1000);
             }
         } catch (Exception ignored) {}
-    }
-
-    @Override
-    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
-        if (this.getBridge() != null) {
-            WebView webView = this.getBridge().getWebView();
-            if (webView != null && !webView.hasFocus()) {
-                webView.requestFocus();
-            }
-        }
-        return super.dispatchKeyEvent(event);
     }
 
     @Override
@@ -298,15 +265,6 @@ public class MainActivity extends BridgeActivity {
             int top = act != null ? act.getSafeTopInsetDp() : 36;
             JSObject ret = new JSObject();
             ret.put("top", top);
-            call.resolve(ret);
-        }
-
-        @PluginMethod
-        public void isAndroidTv(PluginCall call) {
-            MainActivity act = (MainActivity) getActivity();
-            boolean isTv = act != null && act.isAndroidTv();
-            JSObject ret = new JSObject();
-            ret.put("isTv", isTv);
             call.resolve(ret);
         }
     }

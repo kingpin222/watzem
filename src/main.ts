@@ -6,13 +6,9 @@ import { StatusBar } from '@capacitor/status-bar';
 import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { initAdBlocker } from './utils/adBlocker';
-import { spatialNav } from './services/spatialNav';
 
 // Initialize in-app Ad and Popup Blocker Engine
 initAdBlocker();
-
-// Initialize Spatial Navigation Engine for Android TV, Google TV & D-pad remotes
-spatialNav.init();
 
 // Disable browser/WebView automatic scroll restoration
 if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
@@ -35,23 +31,14 @@ async function initCapacitor() {
     await NavigationBar.hide();
   } catch {}
 
-  const isTv = Boolean(
-    (window as any).__IS_ANDROID_TV__ ||
-    document.documentElement.classList.contains('is-tv-mode') ||
-    /android.*(tv|box)|googletv|smarttv|mibox|firetv/i.test(navigator.userAgent || '')
-  );
-
-  // On standard mobile devices lock portrait; on Android TV keep natural landscape
-  if (!isTv) {
+  try {
+    await ScreenOrientation.lock({ orientation: 'portrait' });
+  } catch {
     try {
-      await ScreenOrientation.lock({ orientation: 'portrait' });
-    } catch {
-      try {
-        if (screen.orientation && (screen.orientation as any).lock) {
-          await (screen.orientation as any).lock('portrait');
-        }
-      } catch {}
-    }
+      if (screen.orientation && (screen.orientation as any).lock) {
+        await (screen.orientation as any).lock('portrait');
+      }
+    } catch {}
   }
 
   // Set safe-area CSS vars flush to the top

@@ -886,22 +886,8 @@ const stopAndClose = async () => {
 };
 
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (isPlaying.value || isFullscreen.value) {
-    showControls.value = true;
-    resetControlsTimeout();
-  }
-  if (e.key === 'Escape' || e.keyCode === 27 || e.keyCode === 4) {
-    if (showServerMenu.value) {
-      showServerMenu.value = false;
-      return;
-    }
-    if (showEpisodesMenu.value) {
-      showEpisodesMenu.value = false;
-      return;
-    }
-    if (isFullscreen.value || isPlaying.value) {
-      stopAndClose();
-    }
+  if (e.key === 'Escape' && (isFullscreen.value || isPlaying.value)) {
+    stopAndClose();
   }
 };
 
@@ -2788,28 +2774,6 @@ watch([currentSeason, currentEpisode], () => {
   color: #ffffff;
   transform: scale(1.05);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-}
-
-.theater-server-btn:focus-visible,
-.theater-server-btn.tv-focused,
-.theater-next-btn:focus-visible,
-.theater-next-btn.tv-focused,
-.theater-episodes-btn:focus-visible,
-.theater-episodes-btn.tv-focused,
-.floating-theater-pip-btn:focus-visible,
-.floating-theater-pip-btn.tv-focused,
-.floating-theater-exit-btn:focus-visible,
-.floating-theater-exit-btn.tv-focused,
-.theater-ep-pill:focus-visible,
-.theater-ep-pill.tv-focused,
-.menu-server-item:focus-visible,
-.menu-server-item.tv-focused {
-  outline: 3px solid var(--accent-primary, #f59e0b) !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.8) !important;
-  transform: scale(1.1) !important;
-  z-index: 100010 !important;
-  opacity: 1 !important;
 }
 
 @media (min-width: 768px) {
