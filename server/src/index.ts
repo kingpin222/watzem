@@ -273,59 +273,59 @@ app.get('/api/stream/probe', async (req: Request, res: Response) => {
     const candidateServers = [
       {
         index: 0,
+        id: 'server10',
+        name: 'Server 1 (VidEasy)',
+        url: isTv
+          ? `https://player.videasy.to/tv/${id}/${season || 1}/${episode || 1}`
+          : `https://player.videasy.to/movie/${id}`
+      },
+      {
+        index: 1,
         id: 'server3',
-        name: 'Server 1',
+        name: 'Server 2',
         url: isTv
           ? `https://player.autoembed.co/embed/tv/${id}/${season}/${episode}`
           : `https://player.autoembed.co/embed/movie/${id}`
       },
       {
-        index: 1,
+        index: 2,
         id: 'server1',
-        name: 'Server 2',
+        name: 'Server 3',
         url: isTv
           ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
           : `https://vidlink.pro/movie/${id}`
       },
       {
-        index: 2,
+        index: 3,
         id: 'server2',
-        name: 'Server 3',
+        name: 'Server 4',
         url: isTv
           ? `https://vidsrc.pm/embed/tv/${id}/${season}/${episode}`
           : `https://vidsrc.pm/embed/movie/${id}`
       },
       {
-        index: 3,
+        index: 4,
         id: 'server5',
-        name: 'Server 4',
+        name: 'Server 5',
         url: isTv
           ? `https://vidsrc.io/embed/tv/${id}/${season}/${episode}`
           : `https://vidsrc.io/embed/movie/${id}`
       },
       {
-        index: 4,
+        index: 5,
         id: 'server6',
-        name: 'Server 5',
+        name: 'Server 6',
         url: isTv
           ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`
           : `https://multiembed.mov/?video_id=${id}&tmdb=1`
       },
       {
-        index: 5,
+        index: 6,
         id: 'server8',
-        name: 'Server 6 (CineSrc)',
+        name: 'Server 7 (CineSrc)',
         url: isTv
           ? `https://cinesrc.st/embed/tv/${id}?s=${season || 1}&e=${episode || 1}&color=%23f59e0b&autoskip=true&autonext=true`
           : `https://cinesrc.st/embed/movie/${id}?color=%23f59e0b&autoskip=true`
-      },
-      {
-        index: 6,
-        id: 'server10',
-        name: 'Server 7 (VidEasy)',
-        url: isTv
-          ? `https://player.videasy.to/tv/${id}/${season || 1}/${episode || 1}`
-          : `https://player.videasy.to/movie/${id}`
       }
     ];
 
@@ -369,16 +369,16 @@ app.get('/api/stream/probe', async (req: Request, res: Response) => {
     const results = await Promise.all(probePromises);
     const workingServers = results.filter((s) => s.ok);
 
-    // Prefer Server 2 (Vidlink) if online and responsive (<1500ms), as it provides fast, direct playback.
+    // Prefer Server 1 (VidEasy) as primary if online and responsive (<2500ms).
     // Otherwise pick the lowest latency working server.
-    let best = workingServers.find((s) => s.index === 1 && s.latency < 1500);
+    let best = workingServers.find((s) => s.index === 0 && s.latency < 2500);
     if (!best && workingServers.length > 0) {
       best = [...workingServers].sort((a, b) => a.latency - b.latency)[0];
     }
 
     const bestIndex = best ? best.index : 0;
-    const bestId = best ? best.id : 'server3';
-    const bestName = best ? best.name : 'Server 1';
+    const bestId = best ? best.id : 'server10';
+    const bestName = best ? best.name : 'Server 1 (VidEasy)';
 
     res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
     res.json({

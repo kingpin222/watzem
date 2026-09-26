@@ -233,9 +233,22 @@ const trailerUrl = computed(() =>
 
 const SERVERS: StreamServerDef[] = [
   {
-    id: 'server3',
+    id: 'server10',
     name: 'Server 1',
-    shortName: 'Server 1',
+    shortName: 'VidEasy',
+    badge: 'Fast VIP',
+    getUrl: (id, isTv, season, episode) => {
+      const s = season || 1;
+      const e = episode || 1;
+      return isTv
+        ? `https://player.videasy.to/tv/${id}/${s}/${e}`
+        : `https://player.videasy.to/movie/${id}`;
+    }
+  },
+  {
+    id: 'server3',
+    name: 'Server 2',
+    shortName: 'Server 2',
     badge: 'VIP Clean',
     getUrl: (id, isTv, season, episode) => {
       return isTv
@@ -245,8 +258,8 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server1',
-    name: 'Server 2',
-    shortName: 'Server 2',
+    name: 'Server 3',
+    shortName: 'Server 3',
     badge: 'HD Mirror',
     getUrl: (id, isTv, season, episode) => {
       const params = new URLSearchParams({
@@ -266,8 +279,8 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server2',
-    name: 'Server 3',
-    shortName: 'Server 3',
+    name: 'Server 4',
+    shortName: 'Server 4',
     badge: 'Fast Stream',
     getUrl: (id, isTv, season, episode) => {
       return isTv
@@ -277,8 +290,8 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server5',
-    name: 'Server 4',
-    shortName: 'Server 4',
+    name: 'Server 5',
+    shortName: 'Server 5',
     badge: 'Alternative',
     getUrl: (id, isTv, season, episode) => {
       return isTv
@@ -288,8 +301,8 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server6',
-    name: 'Server 5',
-    shortName: 'Server 5',
+    name: 'Server 6',
+    shortName: 'Server 6',
     badge: 'Multi-Source',
     getUrl: (id, isTv, season, episode) => {
       return isTv
@@ -299,7 +312,7 @@ const SERVERS: StreamServerDef[] = [
   },
   {
     id: 'server8',
-    name: 'Server 6',
+    name: 'Server 7',
     shortName: 'CineSrc',
     badge: 'VIP Auto-Skip',
     getUrl: (id, isTv, season, episode) => {
@@ -314,19 +327,6 @@ const SERVERS: StreamServerDef[] = [
       return isTv
         ? `https://cinesrc.st/embed/tv/${id}?s=${s}&e=${e}&${params.toString()}`
         : `https://cinesrc.st/embed/movie/${id}?${params.toString()}`;
-    }
-  },
-  {
-    id: 'server10',
-    name: 'Server 7',
-    shortName: 'VidEasy',
-    badge: 'Fast VIP',
-    getUrl: (id, isTv, season, episode) => {
-      const s = season || 1;
-      const e = episode || 1;
-      return isTv
-        ? `https://player.videasy.to/tv/${id}/${s}/${e}`
-        : `https://player.videasy.to/movie/${id}`;
     }
   }
 ];
