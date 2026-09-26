@@ -381,6 +381,65 @@ const isIframeLoaded = ref(false);
 const isStreamHealthy = ref(false);
 const showServerMenu = ref(false);
 
+// Auto-hide player buttons on inactivity (3.5s timeout)
+const showControls = ref(true);
+let controlsInactivityTimer: any = null;
+
+const resetControlsTimeout = () => {
+  showControls.value = true;
+  if (controlsInactivityTimer) {
+    clearTimeout(controlsInactivityTimer);
+    controlsInactivityTimer = null;
+  }
+  // Keep controls visible while server or episode menu dropdown is open
+  if (showServerMenu.value || showEpisodesMenu.value) {
+    return;
+  }
+  if (isPlaying.value) {
+    controlsInactivityTimer = setTimeout(() => {
+      if (!showServerMenu.value && !showEpisodesMenu.value) {
+        showControls.value = false;
+      }
+    }, 3500);
+  }
+};
+
+const handleUserActivity = () => {
+  resetControlsTimeout();
+};
+
+const toggleControls = () => {
+  if (!showControls.value) {
+    resetControlsTimeout();
+  } else {
+    // If a menu is open, clicking empty background closes it first
+    if (showServerMenu.value || showEpisodesMenu.value) {
+      showServerMenu.value = false;
+      showEpisodesMenu.value = false;
+      resetControlsTimeout();
+    } else {
+      showControls.value = false;
+      if (controlsInactivityTimer) {
+        clearTimeout(controlsInactivityTimer);
+        controlsInactivityTimer = null;
+      }
+    }
+  }
+};
+
+// Keep controls visible while menus are open, resume countdown on close
+watch([showServerMenu, showEpisodesMenu], ([serverOpen, epOpen]) => {
+  if (serverOpen || epOpen) {
+    showControls.value = true;
+    if (controlsInactivityTimer) {
+      clearTimeout(controlsInactivityTimer);
+      controlsInactivityTimer = null;
+    }
+  } else {
+    resetControlsTimeout();
+  }
+});
+
 // Smart failure memory & exhaustion tracking
 const failedServerIndices = ref<Set<number>>(new Set());
 const allServersExhausted = ref(false);
@@ -389,6 +448,7 @@ const activeServer = computed(() => SERVERS[activeServerIndex.value] || SERVERS[
 
 const showFallbackNotice = (msg: string) => {
   fallbackNotice.value = msg;
+  resetControlsTimeout();
   if (fallbackNoticeTimer) clearTimeout(fallbackNoticeTimer);
   fallbackNoticeTimer = setTimeout(() => {
     fallbackNotice.value = '';
@@ -899,17 +959,28 @@ const triggerPip = async () => {
   }
 };
 
-watch(isPlaying, (playing) => {
+watch([isPlaying, isFullscreen], ([playing]) => {
   if (PipPlugin?.setAutoPip) {
     try {
       PipPlugin.setAutoPip({ enabled: playing });
     } catch {}
+  }
+  if (playing) {
+    resetControlsTimeout();
+  } else {
+    showControls.value = true;
+    if (controlsInactivityTimer) {
+      clearTimeout(controlsInactivityTimer);
+      controlsInactivityTimer = null;
+    }
   }
 });
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('message', handleWindowMessage);
+  window.addEventListener('mousemove', handleUserActivity, { passive: true });
+  window.addEventListener('touchstart', handleUserActivity, { passive: true });
 
   checkPipSupport();
   if (PipPlugin?.addListener) {
@@ -981,6 +1052,12 @@ onUnmounted(async () => {
   clearWatchdog();
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('message', handleWindowMessage);
+  window.removeEventListener('mousemove', handleUserActivity);
+  window.removeEventListener('touchstart', handleUserActivity);
+  if (controlsInactivityTimer) {
+    clearTimeout(controlsInactivityTimer);
+    controlsInactivityTimer = null;
+  }
   if (scrollCleanup) scrollCleanup();
   if (fallbackNoticeTimer) clearTimeout(fallbackNoticeTimer);
   if (pipListener) {
@@ -1130,7 +1207,20 @@ watch([currentSeason, currentEpisode], () => {
 
       <!-- Inline Video with Server Controls and Exit button -->
       <transition name="player-fade">
-      <div v-if="isPlaying" class="inline-player-wrap" :class="{ 'in-pip-mode': isInPipMode }">
+      <div
+        v-if="isPlaying"
+        class="inline-player-wrap"
+        :class="{ 'in-pip-mode': isInPipMode, 'controls-hidden': !showControls }"
+        @pointermove="handleUserActivity"
+        @touchstart.passive="handleUserActivity"
+      >
+        <!-- Top Touch/Tap Wake Zone (Inline) -->
+        <div
+          class="inline-touch-wake-zone"
+          :class="{ 'is-active': !showControls }"
+          @click.stop="toggleControls"
+        ></div>
+
         <iframe
           :key="streamUrl"
           :src="streamUrl"
@@ -1164,7 +1254,7 @@ watch([currentSeason, currentEpisode], () => {
         </transition>
 
         <!-- Top Inline Controls -->
-        <div class="inline-top-bar">
+        <div class="inline-top-bar" @click.stop="resetControlsTimeout">
           <!-- Server Switcher & Next Server Button (Only shown if showInlineServer enabled) -->
           <div v-if="showInlineServer" class="server-quick-controls">
             <button
@@ -1271,8 +1361,17 @@ watch([currentSeason, currentEpisode], () => {
       <div
         v-if="isFullscreen && isPlaying"
         class="fullscreen-theater-overlay force-landscape"
-        :class="{ 'in-pip-mode': isInPipMode }"
+        :class="{ 'in-pip-mode': isInPipMode, 'controls-hidden': !showControls }"
+        @pointermove="handleUserActivity"
+        @touchstart.passive="handleUserActivity"
       >
+        <!-- Top Touch/Tap Wake Zone (Fullscreen) -->
+        <div
+          class="theater-touch-wake-zone"
+          :class="{ 'is-active': !showControls }"
+          @click.stop="toggleControls"
+        ></div>
+
         <!-- Fallback notice pill (only appears during server switch / error fallback) -->
         <transition name="hint-fade">
           <div v-if="fallbackNotice" class="fallback-notice-pill">
@@ -1282,7 +1381,7 @@ watch([currentSeason, currentEpisode], () => {
         </transition>
 
         <!-- Floating Theater Top Controls Header -->
-        <div class="theater-top-controls">
+        <div class="theater-top-controls" @click.stop="resetControlsTimeout">
           <!-- Server Switcher & Next Server Button -->
           <div class="theater-server-pill-wrap">
             <button
@@ -1411,7 +1510,7 @@ watch([currentSeason, currentEpisode], () => {
         </transition>
 
         <!-- Video Frame -->
-        <div class="fullscreen-video-frame" @click="showServerMenu = false; showEpisodesMenu = false">
+        <div class="fullscreen-video-frame" @click="toggleControls">
           <iframe
             :key="streamUrl"
             :src="streamUrl"
@@ -2037,9 +2136,37 @@ watch([currentSeason, currentEpisode], () => {
   gap: 8px;
   z-index: 35;
   pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .inline-top-bar > * {
+  pointer-events: auto;
+}
+
+.inline-player-wrap.controls-hidden .inline-top-bar {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none !important;
+}
+
+.inline-player-wrap.controls-hidden .inline-top-bar > * {
+  pointer-events: none !important;
+}
+
+/* Touch wake zone for inline player */
+.inline-touch-wake-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  z-index: 34;
+  pointer-events: none;
+}
+
+.inline-player-wrap.controls-hidden .inline-touch-wake-zone {
   pointer-events: auto;
 }
 
@@ -2297,6 +2424,34 @@ watch([currentSeason, currentEpisode], () => {
 }
 
 /* Fullscreen Theater Top Controls */
+.fullscreen-theater-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #000;
+  overflow: hidden;
+  transition: cursor 0.2s ease;
+}
+
+.fullscreen-theater-overlay.controls-hidden {
+  cursor: none;
+}
+
+/* Touch wake zone to capture tap near top when theater buttons are hidden */
+.theater-touch-wake-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: 99998;
+  pointer-events: none;
+}
+
+.fullscreen-theater-overlay.controls-hidden .theater-touch-wake-zone {
+  pointer-events: auto;
+}
+
 .theater-top-controls {
   position: absolute;
   top: max(calc(var(--safe-top, 0px) + 14px), 16px);
@@ -2308,10 +2463,23 @@ watch([currentSeason, currentEpisode], () => {
   gap: 12px;
   z-index: 100000;
   pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .theater-top-controls > * {
   pointer-events: auto;
+}
+
+.fullscreen-theater-overlay.controls-hidden .theater-top-controls {
+  opacity: 0;
+  transform: translateY(-12px);
+  pointer-events: none !important;
+}
+
+.fullscreen-theater-overlay.controls-hidden .theater-top-controls > * {
+  pointer-events: none !important;
 }
 
 .theater-server-pill-wrap {
