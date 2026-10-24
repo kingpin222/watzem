@@ -23,7 +23,7 @@ body.is-tv-mode {
 
 /* Push content to the right to make room for TV Sidebar */
 .is-tv-mode .app-container {
-  padding-left: 78px;
+  padding-left: calc(78px + var(--safe-left, 0px));
   min-height: 100vh;
 }
 
@@ -57,6 +57,30 @@ body.is-tv-mode {
 .is-tv-mode .tv-theme.tv-focused {
   outline: 3.5px solid #06b6d4 !important;
   box-shadow: 0 0 30px rgba(6, 182, 212, 0.85), 0 8px 30px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Tailored Bottom Nav Tab Focus Indicators for D-Pad / Remote Navigation */
+.is-dpad-active .bottom-nav .nav-tab:focus-visible,
+.is-dpad-active .bottom-nav .nav-tab.tv-focused,
+.is-tv-mode .bottom-nav .nav-tab:focus-visible,
+.is-tv-mode .bottom-nav .nav-tab.tv-focused {
+  outline: 2.5px solid var(--accent-amber, #f59e0b) !important;
+  outline-offset: -2px !important;
+  border-radius: var(--radius-md) !important;
+  background: rgba(245, 158, 11, 0.16) !important;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.5), inset 0 0 10px rgba(245, 158, 11, 0.2) !important;
+  transform: scale(1.06) translateY(-2px) !important;
+  color: var(--accent-amber, #f59e0b) !important;
+}
+
+.is-dpad-active .bottom-nav .nav-tab.tv-theme:focus-visible,
+.is-dpad-active .bottom-nav .nav-tab.tv-theme.tv-focused,
+.is-tv-mode .bottom-nav .nav-tab.tv-theme:focus-visible,
+.is-tv-mode .bottom-nav .nav-tab.tv-theme.tv-focused {
+  outline: 2.5px solid var(--accent-rose, #f43f5e) !important;
+  background: rgba(244, 63, 94, 0.16) !important;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.5), inset 0 0 10px rgba(244, 63, 94, 0.2) !important;
+  color: var(--accent-rose, #f43f5e) !important;
 }
 
 /* Movie Card Focus & Grid Layout on TV */
@@ -125,21 +149,29 @@ body.is-tv-mode {
 }
 
 .is-tv-mode .hero-actions {
-  gap: 1.25rem !important;
-  margin-top: 1.75rem !important;
+  gap: 10px !important;
+  margin-top: 0.5rem !important;
 }
 
 .is-tv-mode .btn-play {
-  font-size: 1.15rem !important;
-  padding: 0.95rem 2.2rem !important;
-  border-radius: 14px !important;
+  font-size: 0.86rem !important;
+  padding: 10px 20px !important;
+  border-radius: 999px !important;
+  font-weight: 800 !important;
 }
 
-.is-tv-mode .btn-details,
+.is-tv-mode .btn-details {
+  font-size: 0.82rem !important;
+  padding: 9px 16px !important;
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+}
+
 .is-tv-mode .btn-bookmark {
-  font-size: 1.1rem !important;
-  padding: 0.95rem 1.8rem !important;
-  border-radius: 14px !important;
+  font-size: 0.82rem !important;
+  padding: 9px 15px !important;
+  border-radius: 999px !important;
+  font-weight: 600 !important;
 }
 
 /* Button & Action Glows */
@@ -149,12 +181,18 @@ body.is-tv-mode {
 .is-tv-mode .btn-details.tv-focused,
 .is-tv-mode .btn-bookmark:focus-visible,
 .is-tv-mode .btn-bookmark.tv-focused,
+.is-tv-mode .cta-watch-btn:focus-visible,
+.is-tv-mode .cta-watch-btn.tv-focused,
+.is-tv-mode .cta-bookmark-btn:focus-visible,
+.is-tv-mode .cta-bookmark-btn.tv-focused,
+.is-tv-mode .cta-trailer-btn:focus-visible,
+.is-tv-mode .cta-trailer-btn.tv-focused,
 .is-tv-mode .hero-nav-arrow:focus-visible,
 .is-tv-mode .hero-nav-arrow.tv-focused {
   outline: 3.5px solid var(--accent-primary, #f59e0b) !important;
   outline-offset: 3px;
   box-shadow: 0 0 25px rgba(245, 158, 11, 0.8) !important;
-  transform: scale(1.08) !important;
+  transform: scale(1.06) !important;
   z-index: 20;
 }
 
@@ -176,22 +214,96 @@ body.is-tv-mode {
 
 .is-tv-mode .theater-server-btn:focus-visible,
 .is-tv-mode .theater-server-btn.tv-focused,
+.is-dpad-active .theater-server-btn.tv-focused,
 .is-tv-mode .theater-next-btn:focus-visible,
 .is-tv-mode .theater-next-btn.tv-focused,
+.is-dpad-active .theater-next-btn.tv-focused,
 .is-tv-mode .theater-episodes-btn:focus-visible,
 .is-tv-mode .theater-episodes-btn.tv-focused,
+.is-dpad-active .theater-episodes-btn.tv-focused,
 .is-tv-mode .floating-theater-pip-btn:focus-visible,
 .is-tv-mode .floating-theater-pip-btn.tv-focused,
+.is-dpad-active .floating-theater-pip-btn.tv-focused,
 .is-tv-mode .floating-theater-exit-btn:focus-visible,
 .is-tv-mode .floating-theater-exit-btn.tv-focused,
+.is-dpad-active .floating-theater-exit-btn.tv-focused,
+.is-tv-mode .player-server-btn:focus-visible,
+.is-tv-mode .player-server-btn.tv-focused,
+.is-dpad-active .player-server-btn.tv-focused,
+.is-tv-mode .player-next-btn:focus-visible,
+.is-tv-mode .player-next-btn.tv-focused,
+.is-dpad-active .player-next-btn.tv-focused,
+.is-tv-mode .player-exit-btn:focus-visible,
+.is-tv-mode .player-exit-btn.tv-focused,
+.is-dpad-active .player-exit-btn.tv-focused,
+.is-tv-mode .player-fullscreen-btn:focus-visible,
+.is-tv-mode .player-fullscreen-btn.tv-focused,
+.is-dpad-active .player-fullscreen-btn.tv-focused,
+.is-tv-mode .player-pip-btn:focus-visible,
+.is-tv-mode .player-pip-btn.tv-focused,
+.is-dpad-active .player-pip-btn.tv-focused,
+.is-tv-mode .exhausted-pick-btn:focus-visible,
+.is-tv-mode .exhausted-pick-btn.tv-focused,
+.is-dpad-active .exhausted-pick-btn.tv-focused,
 .is-tv-mode .theater-ep-pill:focus-visible,
 .is-tv-mode .theater-ep-pill.tv-focused,
-.is-tv-mode .menu-server-item:focus-visible,
-.is-tv-mode .menu-server-item.tv-focused {
+.is-dpad-active .theater-ep-pill.tv-focused {
   outline: 3.5px solid var(--accent-primary, #f59e0b) !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 25px rgba(245, 158, 11, 0.85) !important;
   transform: scale(1.12) !important;
+  z-index: 100010 !important;
+  opacity: 1 !important;
+}
+
+/* Dedicated TV Server Selection Styling */
+.is-tv-mode .theater-server-menu,
+.is-tv-mode .player-server-menu {
+  top: 68px !important;
+  left: 28px !important;
+  min-width: 320px !important;
+  max-width: 420px !important;
+  padding: 10px !important;
+  gap: 5px !important;
+  background: rgba(13, 15, 23, 0.98) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(245, 158, 11, 0.25) !important;
+  border-radius: 12px !important;
+}
+
+.is-tv-mode .menu-title {
+  font-size: 0.82rem !important;
+  padding: 6px 10px !important;
+  margin-bottom: 4px !important;
+  color: rgba(245, 158, 11, 0.95) !important;
+  letter-spacing: 0.8px !important;
+}
+
+.menu-server-item {
+  transition: all 0.16s cubic-bezier(0.2, 0.8, 0.25, 1) !important;
+}
+
+.is-tv-mode .menu-server-item {
+  padding: 10px 14px !important;
+  font-size: 0.94rem !important;
+  border-radius: 8px !important;
+}
+
+.is-tv-mode .menu-server-item .item-badge {
+  font-size: 0.72rem !important;
+  padding: 2px 8px !important;
+}
+
+.is-tv-mode .menu-server-item:focus-visible,
+.is-tv-mode .menu-server-item.tv-focused,
+.is-dpad-active .menu-server-item.tv-focused,
+.menu-server-item.tv-focused {
+  outline: 3.5px solid var(--accent-primary, #f59e0b) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.9) !important;
+  background: rgba(245, 158, 11, 0.26) !important;
+  color: #ffffff !important;
+  transform: scale(1.05) !important;
   z-index: 100010 !important;
   opacity: 1 !important;
 }

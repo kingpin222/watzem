@@ -195,8 +195,8 @@ let ticking = false;
 const handleScroll = () => {
   if (!ticking) {
     window.requestAnimationFrame(() => {
-      const isLandscapeMobile = window.matchMedia('(orientation: landscape) and (max-height: 550px)').matches;
-      if (isLandscapeMobile) {
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+      if (isLandscape) {
         scrollParallaxY.value = 0;
       } else {
         const scrollY = window.scrollY || document.documentElement.scrollTop;
@@ -393,17 +393,19 @@ watch(
           </button>
 
           <button class="btn-details" @click.stop="emit('select', activeItem)">
-            <Info :size="16" />
+            <Info :size="15" />
             <span>Details</span>
           </button>
 
           <button
             class="btn-bookmark"
             :class="{ active: isSaved }"
+            :title="isSaved ? 'Remove from Watchlist' : 'Add to Watchlist'"
             aria-label="Save to watchlist"
             @click="handleToggleBookmark"
           >
-            <Bookmark :size="18" :fill="isSaved ? 'currentColor' : 'none'" />
+            <Bookmark :size="15" :fill="isSaved ? 'currentColor' : 'none'" />
+            <span>{{ isSaved ? 'Saved' : 'Watchlist' }}</span>
           </button>
         </div>
       </div>
@@ -437,9 +439,9 @@ watch(
   }
 }
 
-@media (orientation: landscape) and (max-height: 550px) {
+@media (orientation: landscape) {
   .featured-hero {
-    height: clamp(240px, 72vh, 320px);
+    height: clamp(220px, 66vh, 360px);
   }
 }
 
@@ -617,9 +619,9 @@ watch(
   }
 }
 
-@media (orientation: landscape) and (max-height: 550px) {
+@media (orientation: landscape) {
   .hero-content {
-    padding: 0.85rem max(1.25rem, var(--safe-left, 0px)) 0.75rem;
+    padding: 0.75rem max(1.25rem, var(--safe-left, 0px)) 0.75rem;
     padding-right: max(1.25rem, var(--safe-right, 0px));
     gap: 0.4rem;
     max-width: 100%;
@@ -628,30 +630,33 @@ watch(
     gap: 0.25rem;
   }
   .hero-title {
-    font-size: clamp(1.25rem, 3.2vw, 1.85rem);
+    font-size: clamp(1.2rem, 3.2vw, 1.85rem);
     line-height: 1.15;
   }
   .hero-desc {
     font-size: 0.8rem;
     line-height: 1.35;
-    -webkit-line-clamp: 1;
-    max-width: 600px;
+    -webkit-line-clamp: 2;
+    max-width: 680px;
   }
   .hero-bottom-bar {
-    margin-top: 0.2rem;
-    gap: 0.5rem;
+    margin-top: 0.25rem;
+    gap: 0.6rem;
   }
   .btn-play {
-    padding: 0.45rem 1.1rem;
+    padding: 8px 14px;
     font-size: 0.8rem;
+    border-radius: 999px;
   }
   .btn-details {
-    padding: 0.45rem 0.9rem;
-    font-size: 0.8rem;
+    padding: 7px 12px;
+    font-size: 0.78rem;
+    border-radius: 999px;
   }
   .btn-bookmark {
-    width: 36px;
-    height: 36px;
+    padding: 7px 11px;
+    font-size: 0.78rem;
+    border-radius: 999px;
   }
 }
 
@@ -762,85 +767,108 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 0.35rem;
+  margin-top: 0.5rem;
 }
 
 /* Actions */
 .hero-actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btn-play {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
   background: var(--accent-amber);
   color: #07070a;
-  font-size: 0.85rem;
-  font-weight: 700;
-  padding: 0.65rem 1.35rem;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 18px var(--accent-amber-glow);
+  font-size: 0.86rem;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-play:hover {
-  transform: translateY(-2px) scale(1.02);
-  filter: brightness(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .btn-play:hover {
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+    filter: brightness(1.08);
+  }
+}
+
+.btn-play:active {
+  transform: scale(0.98);
 }
 
 .btn-play.tv-theme {
   background: var(--accent-rose);
-  box-shadow: 0 4px 18px var(--accent-rose-glow);
+  box-shadow: 0 4px 16px var(--accent-rose-glow);
   color: #fff;
 }
 
 .btn-details {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.65rem 1.1rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(28, 28, 40, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.btn-details:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .btn-details:hover {
+    background: rgba(45, 45, 60, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+}
+
+.btn-details:active {
+  transform: scale(0.98);
 }
 
 .btn-bookmark {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: rgba(24, 24, 34, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.btn-bookmark:hover {
-  background: rgba(255, 255, 255, 0.2);
+@media (hover: hover) and (pointer: fine) {
+  .btn-bookmark:hover {
+    background: rgba(38, 38, 52, 0.95);
+    color: #fff;
+  }
+}
+
+.btn-bookmark:active {
+  transform: scale(0.98);
 }
 
 .btn-bookmark.active {
-  color: var(--accent-amber);
-  border-color: var(--accent-amber);
-  background: rgba(245, 158, 11, 0.16);
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
 }
 
 /* Indicators Cluster & Random Shuffle */
