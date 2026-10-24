@@ -21,8 +21,11 @@ body.is-tv-mode {
   scroll-padding-left: 90px;
 }
 
-/* Push content to the right to make room for TV Sidebar */
+/* Push content to the right to make room for TV Sidebar - 100% Fluid */
 .is-tv-mode .app-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
   padding-left: calc(78px + var(--safe-left, 0px));
   min-height: 100vh;
 }
@@ -33,8 +36,16 @@ body.is-tv-mode {
 
 .is-tv-mode .main-content {
   padding-bottom: 2rem !important;
-  max-width: 100vw;
+  width: 100% !important;
+  max-width: 100% !important;
   overflow-x: hidden;
+}
+
+.is-tv-mode .banner-info-content,
+.is-tv-mode .page-content-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
 }
 
 /* Universal TV and D-pad active focus indicators */
@@ -204,7 +215,9 @@ body.is-tv-mode {
 }
 
 .is-tv-mode .header-content {
-  max-width: 1600px;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
 }
 
 /* Player TV Remote Control Enhancements */
@@ -549,5 +562,23 @@ body.is-tv-mode {
   z-index: 30 !important;
 }
 
+/* TV Mode: Tips & Update Full-Page Views */
+.is-tv-mode .tips-page,
+.is-tv-mode .update-page {
+  padding-left: 0 !important;
+  width: 100vw !important;
+  min-height: 100vh;
+}
 
+.is-tv-mode .tips-header-bar,
+.is-tv-mode .update-header-bar {
+  padding-left: 3.5rem !important;
+  padding-right: 3.5rem !important;
+}
 
+.is-tv-mode .tips-content,
+.is-tv-mode .update-content {
+  padding-left: 3.5rem !important;
+  padding-right: 3.5rem !important;
+  max-width: 100% !important;
+}

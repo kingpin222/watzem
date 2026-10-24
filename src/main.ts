@@ -23,9 +23,10 @@ const isTv = typeof window !== 'undefined' && Boolean(
 
 if (isTv) {
   document.documentElement.classList.add('is-tv-mode');
-  // Initialize Spatial Navigation for Android TV D-Pad & remotes
-  tvSpatialNav.init();
 }
+
+// Initialize Spatial Navigation for D-Pad, TV remotes, keyboards, and game controllers
+tvSpatialNav.init();
 
 // Disable browser/WebView automatic scroll restoration
 if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
@@ -52,14 +53,14 @@ async function initCapacitor() {
     await NavigationBar.hide();
   } catch {}
 
-  // On mobile lock portrait; TV is natively fixed landscape
+  // Support both portrait and landscape orientation on mobile (TV is natively fixed landscape)
   if (!isTv) {
     try {
-      await ScreenOrientation.lock({ orientation: 'portrait' });
+      await ScreenOrientation.unlock();
     } catch {
       try {
-        if (screen.orientation && (screen.orientation as any).lock) {
-          await (screen.orientation as any).lock('portrait');
+        if (screen.orientation && (screen.orientation as any).unlock) {
+          await (screen.orientation as any).unlock();
         }
       } catch {}
     }
@@ -69,25 +70,67 @@ async function initCapacitor() {
   const syncSafeArea = () => {
     if (isTv) {
       document.documentElement.style.setProperty('--safe-top', '0px');
+      document.documentElement.style.setProperty('--safe-bottom', '0px');
+      document.documentElement.style.setProperty('--safe-left', '0px');
+      document.documentElement.style.setProperty('--safe-right', '0px');
       return;
     }
+
+    const isLandscape = window.matchMedia('(orientation: landscape)').matches || (window.innerWidth > window.innerHeight);
     const style = getComputedStyle(document.documentElement);
-    let top = (window as any).__ANDROID_SAFE_TOP__ ? `${(window as any).__ANDROID_SAFE_TOP__}px` : style.getPropertyValue('--safe-top').trim();
+
+    let top = (window as any).__ANDROID_SAFE_TOP__ !== undefined
+      ? `${(window as any).__ANDROID_SAFE_TOP__}px`
+      : style.getPropertyValue('--safe-top').trim();
+    let bottom = (window as any).__ANDROID_SAFE_BOTTOM__ !== undefined
+      ? `${(window as any).__ANDROID_SAFE_BOTTOM__}px`
+      : style.getPropertyValue('--safe-bottom').trim() || '0px';
+    let left = (window as any).__ANDROID_SAFE_LEFT__ !== undefined
+      ? `${(window as any).__ANDROID_SAFE_LEFT__}px`
+      : style.getPropertyValue('--safe-left').trim() || '0px';
+    let right = (window as any).__ANDROID_SAFE_RIGHT__ !== undefined
+      ? `${(window as any).__ANDROID_SAFE_RIGHT__}px`
+      : style.getPropertyValue('--safe-right').trim() || '0px';
+
     if (isNative) {
-      const parsed = parseFloat(top);
-      if (!parsed || parsed < 36) {
-        top = '36px';
+      if (isLandscape) {
+        // In landscape, status bar is hidden, cutout notch is on the left/right sides
+        if ((window as any).__ANDROID_SAFE_TOP__ === undefined) {
+          top = '0px';
+        }
+      } else {
+        const parsed = parseFloat(top);
+        if (!parsed || parsed < 36) {
+          top = '36px';
+        }
+        left = '0px';
+        right = '0px';
+        (window as any).__ANDROID_SAFE_LEFT__ = 0;
+        (window as any).__ANDROID_SAFE_RIGHT__ = 0;
       }
+    } else if (!isLandscape) {
+      left = '0px';
+      right = '0px';
     }
-    const bottom = style.getPropertyValue('--safe-bottom').trim() || '0px';
-    const left   = style.getPropertyValue('--safe-left').trim()   || '0px';
-    const right  = style.getPropertyValue('--safe-right').trim()  || '0px';
 
     document.documentElement.style.setProperty('--safe-top',    top || '0px');
-    document.documentElement.style.setProperty('--safe-bottom', bottom);
-    document.documentElement.style.setProperty('--safe-left',   left);
-    document.documentElement.style.setProperty('--safe-right',  right);
+    document.documentElement.style.setProperty('--safe-bottom', bottom || '0px');
+    document.documentElement.style.setProperty('--safe-left',   left || '0px');
+    document.documentElement.style.setProperty('--safe-right',  right || '0px');
+
+    document.documentElement.classList.toggle('is-landscape', isLandscape);
+    document.documentElement.classList.toggle('is-portrait', !isLandscape);
   };
+
+  window.addEventListener('resize', syncSafeArea, { passive: true });
+  window.addEventListener('orientationchange', syncSafeArea, { passive: true });
+  try {
+    ScreenOrientation.addListener('screenOrientationChange', () => {
+      requestAnimationFrame(syncSafeArea);
+      setTimeout(syncSafeArea, 150);
+      setTimeout(syncSafeArea, 400);
+    });
+  } catch {}
 
   requestAnimationFrame(syncSafeArea);
   setTimeout(syncSafeArea, 200);

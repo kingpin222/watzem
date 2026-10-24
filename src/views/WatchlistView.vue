@@ -99,9 +99,12 @@ const setFilter = (type: 'all' | 'movie' | 'tv') => {
 </template>
 
 <style scoped>
+/* Watchlist View - 100% Fluid */
 .watchlist-view {
-  padding: 1.25rem max(1rem, var(--safe-left, 0px)) 3rem;
-  padding-right: max(1rem, var(--safe-right, 0px));
+  width: 100%;
+  max-width: 100%;
+  padding: 1.25rem max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-left, 0px)) 3rem;
+  padding-right: max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -109,8 +112,8 @@ const setFilter = (type: 'all' | 'movie' | 'tv') => {
 
 @media (min-width: 768px) {
   .watchlist-view {
-    padding: 1.75rem max(1.5rem, var(--safe-left, 0px)) 4rem;
-    padding-right: max(1.5rem, var(--safe-right, 0px));
+    padding: 1.75rem max(clamp(1.5rem, 3vw, 3rem), var(--safe-left, 0px)) 4rem;
+    padding-right: max(clamp(1.5rem, 3vw, 3rem), var(--safe-right, 0px));
   }
 }
 
@@ -197,7 +200,7 @@ const setFilter = (type: 'all' | 'movie' | 'tv') => {
   gap: 0.45rem;
 }
 
-/* Grid */
+/* Grid - Fluid Auto-Scaling */
 .movies-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -228,7 +231,72 @@ const setFilter = (type: 'all' | 'movie' | 'tv') => {
 @media (min-width: 1280px) {
   .movies-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.35rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .movies-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1.4rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  .movies-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 1.5rem;
+  }
+}
+
+@media (min-width: 2560px) {
+  .movies-grid {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 1.6rem;
+  }
+}
+
+@media (orientation: landscape) {
+  .watchlist-view {
+    padding: 1rem max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-left, 0px)) 3rem;
+    padding-right: max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
+    gap: 0.85rem;
+  }
+  .watchlist-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.5rem;
+  }
+  .movies-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 900px) {
+  .movies-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1200px) {
+  .movies-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.15rem;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1536px) {
+  .movies-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1920px) {
+  .movies-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 }
 </style>

@@ -129,7 +129,7 @@ export interface SeasonDetailsResponse {
 
 export type MediaMode = 'movie' | 'tv';
 
-export type TabKey = 'home' | 'explore' | 'search' | 'watchlist' | 'download' | 'details';
+export type TabKey = 'home' | 'explore' | 'search' | 'watchlist' | 'download' | 'details' | 'update' | 'tips';
 
 export interface CastMember {
   id: number;

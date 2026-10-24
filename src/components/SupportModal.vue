@@ -558,4 +558,16 @@ const formatAddress = (address: string) => {
 .support-modal-leave-to {
   opacity: 0;
 }
+
+@media (orientation: landscape) {
+  .support-modal-backdrop {
+    padding: 0.5rem 1rem;
+  }
+  .support-modal-dialog {
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+}
 </style>

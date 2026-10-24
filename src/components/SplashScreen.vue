@@ -524,4 +524,14 @@ onMounted(async () => {
     opacity: 0.8;
   }
 }
+
+@media (orientation: landscape) {
+  .splash-center-content {
+    gap: 1.25rem;
+    padding: 1rem;
+  }
+  .splash-bottom-bar {
+    gap: 0.45rem;
+  }
+}
 </style>

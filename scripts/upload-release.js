@@ -112,7 +112,17 @@ export async function uploadRelease() {
     console.warn('⚠️ Git sync warning:', err.message);
   } finally {
     // Ensure we ALWAYS return to source branch
-    try { run('git checkout source'); } catch (_) {}
+    try {
+      run('git checkout source');
+    } catch (_) {
+      try {
+        const untrackedGitignore = path.join(projectRoot, '.gitignore');
+        if (fs.existsSync(untrackedGitignore)) {
+          fs.unlinkSync(untrackedGitignore);
+        }
+        run('git checkout source');
+      } catch (_) {}
+    }
     if (stashed) {
       console.log('📦 Restoring temporary local changes...');
       try { run('git stash pop'); } catch (_) {}

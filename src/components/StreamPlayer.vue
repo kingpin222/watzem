@@ -31,11 +31,13 @@ import { MediaItem, MediaMode, TVSeason, TVEpisode } from '../types';
 import { useApi } from '../composables/useApi';
 import { useHaptics } from '../composables/useHaptics';
 import { useTvMode } from '../composables/useTvMode';
+import { tvSpatialNav } from '../services/tvSpatialNav';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { StatusBar } from '@capacitor/status-bar';
 import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 import {
   Play,
+  Pause,
   X,
   Server,
   RotateCw,
@@ -236,16 +238,14 @@ const trailerUrl = computed(() =>
 
 const SERVERS: StreamServerDef[] = [
   {
-    id: 'server10',
+    id: 'server2',
     name: 'Server 1',
-    shortName: 'VidEasy',
-    badge: 'Fast VIP',
+    shortName: 'Server 1',
+    badge: 'Fast Stream',
     getUrl: (id, isTv, season, episode) => {
-      const s = season || 1;
-      const e = episode || 1;
       return isTv
-        ? `https://player.videasy.to/tv/${id}/${s}/${e}`
-        : `https://player.videasy.to/movie/${id}`;
+        ? `https://vidsrc.pm/embed/tv/${id}/${season}/${episode}?autoplay=1`
+        : `https://vidsrc.pm/embed/movie/${id}?autoplay=1`;
     }
   },
   {
@@ -255,46 +255,14 @@ const SERVERS: StreamServerDef[] = [
     badge: 'VIP Clean',
     getUrl: (id, isTv, season, episode) => {
       return isTv
-        ? `https://player.autoembed.co/embed/tv/${id}/${season}/${episode}?autoplay=1`
-        : `https://player.autoembed.co/embed/movie/${id}?autoplay=1`;
-    }
-  },
-  {
-    id: 'server1',
-    name: 'Server 3',
-    shortName: 'Server 3',
-    badge: 'HD Mirror',
-    getUrl: (id, isTv, season, episode) => {
-      const params = new URLSearchParams({
-        primaryColor: '63b8bc',
-        secondaryColor: 'a2a2a2',
-        iconColor: 'eefdec',
-        icons: 'vid',
-        player: 'jw',
-        title: 'false',
-        poster: 'false',
-        autoplay: 'true'
-      });
-      return isTv
-        ? `https://vidlink.pro/tv/${id}/${season}/${episode}?${params.toString()}`
-        : `https://vidlink.pro/movie/${id}?${params.toString()}`;
-    }
-  },
-  {
-    id: 'server2',
-    name: 'Server 4',
-    shortName: 'Server 4',
-    badge: 'Fast Stream',
-    getUrl: (id, isTv, season, episode) => {
-      return isTv
-        ? `https://vidsrc.pm/embed/tv/${id}/${season}/${episode}?autoplay=1`
-        : `https://vidsrc.pm/embed/movie/${id}?autoplay=1`;
+        ? `https://player.videasy.to/tv/${id}/${season}/${episode}`
+        : `https://player.videasy.to/movie/${id}`;
     }
   },
   {
     id: 'server5',
-    name: 'Server 5',
-    shortName: 'Server 5',
+    name: 'Server 3',
+    shortName: 'Server 3',
     badge: 'Alternative',
     getUrl: (id, isTv, season, episode) => {
       return isTv
@@ -303,19 +271,8 @@ const SERVERS: StreamServerDef[] = [
     }
   },
   {
-    id: 'server6',
-    name: 'Server 6',
-    shortName: 'Server 6',
-    badge: 'Multi-Source',
-    getUrl: (id, isTv, season, episode) => {
-      return isTv
-        ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}&autoplay=1`
-        : `https://multiembed.mov/?video_id=${id}&tmdb=1&autoplay=1`;
-    }
-  },
-  {
     id: 'server8',
-    name: 'Server 7',
+    name: 'Server 4',
     shortName: 'CineSrc',
     badge: 'VIP Auto-Skip',
     getUrl: (id, isTv, season, episode) => {
@@ -331,18 +288,173 @@ const SERVERS: StreamServerDef[] = [
         ? `https://cinesrc.st/embed/tv/${id}?s=${s}&e=${e}&${params.toString()}`
         : `https://cinesrc.st/embed/movie/${id}?${params.toString()}`;
     }
+  },
+  {
+    id: 'server9',
+    name: 'Server 5',
+    shortName: 'VidSrcMe',
+    badge: 'HD Mirror',
+    getUrl: (id, isTv, season, episode) => {
+      return isTv
+        ? `https://vidsrcme.ru/embed/tv/${id}/${season}/${episode}?autoplay=1`
+        : `https://vidsrcme.ru/embed/movie/${id}?autoplay=1`;
+    }
   }
 ];
 
-const activeServerIndex = ref(0);
+// Default to Server 4 (CineSrc VIP Auto-Skip)
+const DEFAULT_SERVER_INDEX = 3;
+const activeServerIndex = ref(DEFAULT_SERVER_INDEX);
 const isProbingServers = ref(false);
 const serverLatencies = ref<Record<number, number>>({});
 const serverStatusMap = ref<Record<number, boolean>>({});
 const userManuallySelectedServer = ref(false);
-const recommendedServerIndex = ref<number | null>(null);
+const recommendedServerIndex = ref<number | null>(DEFAULT_SERVER_INDEX);
 
-// Automated server availability probe on mount / item change:
-// Tests candidate servers concurrently and sets the verified working server as default
+// Seamless switching & audio isolation to prevent overlapping / duplicate audio
+const isSwitchingServer = ref(false);
+
+// Play / Pause state & TV D-Pad Center HUD feedback
+const isStreamPaused = ref(false);
+const showPlaybackHud = ref(false);
+const playbackHudIcon = ref<'play' | 'pause'>('pause');
+let playbackHudTimer: ReturnType<typeof setTimeout> | null = null;
+
+const triggerPlaybackHud = (action: 'play' | 'pause') => {
+  playbackHudIcon.value = action;
+  showPlaybackHud.value = true;
+  if (playbackHudTimer) clearTimeout(playbackHudTimer);
+  playbackHudTimer = setTimeout(() => {
+    showPlaybackHud.value = false;
+  }, 950);
+};
+
+const togglePlayPause = () => {
+  if (!isPlaying.value) return;
+
+  triggerLight();
+  const nextPaused = !isStreamPaused.value;
+  isStreamPaused.value = nextPaused;
+  triggerPlaybackHud(nextPaused ? 'pause' : 'play');
+
+  if (nextPaused) {
+    // Paused: keep controls visible so user has full awareness
+    showControls.value = true;
+    if (controlsInactivityTimer) {
+      clearTimeout(controlsInactivityTimer);
+      controlsInactivityTimer = null;
+    }
+  } else {
+    // Resumed: auto-hide controls after timeout
+    resetControlsTimeout();
+  }
+
+  // 1. PostMessage playback toggle / state commands to embedded iframes
+  const iframes = document.querySelectorAll<HTMLIFrameElement>(
+    '.fullscreen-iframe, .stream-iframe, .trailer-iframe'
+  );
+
+  iframes.forEach((iframe) => {
+    try {
+      const win = iframe.contentWindow;
+      if (!win) return;
+
+      // CineSrc protocol
+      win.postMessage({ type: nextPaused ? 'cinesrc:pause' : 'cinesrc:play' }, '*');
+      win.postMessage({ type: 'cinesrc:toggle' }, '*');
+      win.postMessage({ type: nextPaused ? 'pause' : 'play' }, '*');
+      win.postMessage({ type: 'toggle' }, '*');
+
+      // VideoJS, PlayerJS, JWPlayer, VidSrc protocols
+      win.postMessage(JSON.stringify({ event: nextPaused ? 'pause' : 'play' }), '*');
+      win.postMessage(JSON.stringify({ method: nextPaused ? 'pause' : 'play' }), '*');
+      win.postMessage(JSON.stringify({ action: nextPaused ? 'pause' : 'play' }), '*');
+      win.postMessage(JSON.stringify({ api: nextPaused ? 'pause' : 'play' }), '*');
+      win.postMessage(JSON.stringify({ type: nextPaused ? 'pause' : 'play' }), '*');
+      win.postMessage(JSON.stringify({ event: 'playToggle' }), '*');
+      win.postMessage(JSON.stringify({ method: 'playPause' }), '*');
+      win.postMessage(JSON.stringify({ method: 'playToggle' }), '*');
+
+      // YouTube iframe API (trailers)
+      win.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: nextPaused ? 'pauseVideo' : 'playVideo',
+          args: ''
+        }),
+        '*'
+      );
+
+      // KeyboardEvent injection (Space / K) if accessible
+      try {
+        win.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', keyCode: 32, bubbles: true }));
+      } catch {}
+    } catch (err) {
+      console.warn('[StreamPlayer] postMessage play/pause error:', err);
+    }
+  });
+
+  // 2. Control any in-page HTML5 video elements
+  const videos = document.querySelectorAll<HTMLVideoElement>('video');
+  videos.forEach((video) => {
+    try {
+      if (nextPaused) {
+        video.pause();
+      } else {
+        video.play().catch(() => {});
+      }
+    } catch {}
+  });
+
+  // 3. Dispatch native Android Bridge simulated touch click at player center
+  try {
+    const bridge = (window as any).TvNativeBridge;
+    if (bridge && typeof bridge.clickAt === 'function') {
+      bridge.clickAt(0.5, 0.5);
+    } else if (bridge && typeof bridge.clickCenter === 'function') {
+      bridge.clickCenter();
+    }
+  } catch {}
+};
+
+const killActiveIframes = () => {
+  try {
+    const iframes = document.querySelectorAll<HTMLIFrameElement>('.stream-iframe, .fullscreen-iframe');
+    iframes.forEach((iframe) => {
+      try {
+        iframe.src = 'about:blank';
+      } catch {}
+    });
+  } catch {}
+};
+
+const switchStream = async (action: () => void) => {
+  // 1. Immediately cut off active audio & video decoders
+  killActiveIframes();
+
+  // 2. Unmount iframe from DOM to completely reset media context
+  isSwitchingServer.value = true;
+  isStreamPaused.value = false;
+  showPlaybackHud.value = false;
+  clearWatchdog();
+  isIframeLoaded.value = false;
+  isStreamLoading.value = true;
+
+  // 3. Perform state update
+  action();
+
+  // 4. Brief pause (60ms) to allow browser media stack and audio context to clear cleanly
+  await new Promise<void>((resolve) => setTimeout(resolve, 60));
+
+  // 5. Mount clean new iframe
+  isSwitchingServer.value = false;
+  if (isPlaying.value) {
+    startWatchdog();
+  }
+};
+
+// Automated background server availability probe on mount / item change:
+// Tests candidate servers concurrently for status/latency without overriding current active stream
 const probeAndSetDefaultServer = async () => {
   if (!props.item || !props.item.id) return;
   isProbingServers.value = true;
@@ -360,11 +472,6 @@ const probeAndSetDefaultServer = async () => {
 
     if (typeof result.bestServerIndex === 'number' && result.bestServerIndex >= 0 && result.bestServerIndex < SERVERS.length) {
       recommendedServerIndex.value = result.bestServerIndex;
-      // If user has not manually switched server during this session, use the verified server as default
-      if (!userManuallySelectedServer.value) {
-        activeServerIndex.value = result.bestServerIndex;
-        console.log(`[StreamPlayer] Tested and set verified default server: ${SERVERS[result.bestServerIndex].name} (${result.bestServerName})`);
-      }
     }
   } catch (err) {
     console.warn('[StreamPlayer] Server probe error:', err);
@@ -382,6 +489,37 @@ const isStreamLoading = ref(false);
 const isIframeLoaded = ref(false);
 const isStreamHealthy = ref(false);
 const showServerMenu = ref(false);
+
+const openServerMenu = (focusActive: boolean = true) => {
+  showControls.value = true;
+  showEpisodesMenu.value = false;
+  showServerMenu.value = true;
+  if (controlsInactivityTimer) {
+    clearTimeout(controlsInactivityTimer);
+    controlsInactivityTimer = null;
+  }
+  if (focusActive) {
+    setTimeout(() => {
+      const activeEl = document.querySelector<HTMLElement>(
+        '.theater-server-menu .menu-server-item.active, .player-server-menu .menu-server-item.active'
+      );
+      const firstEl = document.querySelector<HTMLElement>(
+        '.theater-server-menu .menu-server-item, .player-server-menu .menu-server-item'
+      );
+      const target = activeEl || firstEl;
+      if (target) {
+        target.focus();
+        tvSpatialNav.focusElement(target);
+      }
+    }, 60);
+  }
+};
+
+const closeServerMenu = () => {
+  showServerMenu.value = false;
+  tvSpatialNav.clearFocus();
+  resetControlsTimeout();
+};
 
 // Auto-hide player buttons on inactivity (3.5s timeout)
 const showControls = ref(true);
@@ -418,6 +556,7 @@ const toggleControls = () => {
     if (showServerMenu.value || showEpisodesMenu.value) {
       showServerMenu.value = false;
       showEpisodesMenu.value = false;
+      tvSpatialNav.clearFocus();
       resetControlsTimeout();
     } else {
       showControls.value = false;
@@ -436,6 +575,31 @@ watch([showServerMenu, showEpisodesMenu], ([serverOpen, epOpen]) => {
     if (controlsInactivityTimer) {
       clearTimeout(controlsInactivityTimer);
       controlsInactivityTimer = null;
+    }
+    if (serverOpen) {
+      setTimeout(() => {
+        const activeEl = document.querySelector<HTMLElement>(
+          '.theater-server-menu .menu-server-item.active, .player-server-menu .menu-server-item.active'
+        );
+        const firstEl = document.querySelector<HTMLElement>(
+          '.theater-server-menu .menu-server-item, .player-server-menu .menu-server-item'
+        );
+        const target = activeEl || firstEl;
+        if (target) {
+          target.focus();
+          tvSpatialNav.focusElement(target);
+        }
+      }, 70);
+    } else if (epOpen) {
+      setTimeout(() => {
+        const activeEp = document.querySelector<HTMLElement>(
+          '.theater-episodes-menu .theater-ep-pill.active, .theater-episodes-menu .theater-ep-pill'
+        );
+        if (activeEp) {
+          activeEp.focus();
+          tvSpatialNav.focusElement(activeEp);
+        }
+      }, 70);
     }
   } else {
     resetControlsTimeout();
@@ -470,17 +634,24 @@ const clearWatchdog = () => {
 };
 
 /**
- * Intelligent next server selection:
+ * Random next server selection:
  * 1. Excludes servers that already failed in the current session
- * 2. Prioritizes candidate mirrors verified online via probe (sorted by lowest latency)
- * 3. Falls back to next untried server in natural order
- * 4. Returns null when all 7 servers have been exhausted
+ * 2. Selects randomly among remaining untried servers
+ * 3. Returns null when all servers have been exhausted
  */
 const getNextBestServerIndex = (currentIndex: number): number | null => {
   const untriedIndices: number[] = [];
   for (let i = 0; i < SERVERS.length; i++) {
-    if (!failedServerIndices.value.has(i)) {
+    if (!failedServerIndices.value.has(i) && i !== currentIndex) {
       untriedIndices.push(i);
+    }
+  }
+
+  if (untriedIndices.length === 0) {
+    for (let i = 0; i < SERVERS.length; i++) {
+      if (!failedServerIndices.value.has(i)) {
+        untriedIndices.push(i);
+      }
     }
   }
 
@@ -488,34 +659,16 @@ const getNextBestServerIndex = (currentIndex: number): number | null => {
     return null;
   }
 
-  // Find untried servers that were verified online by probe
-  const verifiedOnline = untriedIndices.filter(
-    (idx) => serverStatusMap.value[idx] === true
-  );
-
-  if (verifiedOnline.length > 0) {
-    verifiedOnline.sort((a, b) => {
-      const latA = serverLatencies.value[a] ?? 9999;
-      const latB = serverLatencies.value[b] ?? 9999;
-      return latA - latB;
-    });
-    return verifiedOnline[0];
-  }
-
-  // Otherwise pick next available untried server
-  const nextInSequence = untriedIndices.find((idx) => idx > currentIndex);
-  if (nextInSequence !== undefined) {
-    return nextInSequence;
-  }
-
-  return untriedIndices[0];
+  // Pick randomly among untried servers
+  const randomIndex = Math.floor(Math.random() * untriedIndices.length);
+  return untriedIndices[randomIndex];
 };
 
 /**
  * Smart automatic fallback:
  * Switches to the next verified/untried server or enters exhausted state
  */
-const triggerNextFallback = (reason = 'Server unresponsive') => {
+const triggerNextFallback = (reason = 'Media not found') => {
   clearWatchdog();
   const prevIdx = activeServerIndex.value;
   const prevName = SERVERS[prevIdx]?.name || `Server ${prevIdx + 1}`;
@@ -531,14 +684,13 @@ const triggerNextFallback = (reason = 'Server unresponsive') => {
   }
 
   allServersExhausted.value = false;
-  activeServerIndex.value = nextIdx;
   const nextName = SERVERS[nextIdx].name;
   showFallbackNotice(`Auto-switched to ${nextName} (${prevName}: ${reason})`);
   console.info(`[StreamPlayer] Auto-switched from ${prevName} to ${nextName} (${reason})`);
 
-  if (isPlaying.value) {
-    startWatchdog();
-  }
+  switchStream(() => {
+    activeServerIndex.value = nextIdx;
+  });
 };
 
 /**
@@ -548,26 +700,30 @@ const retryAllServers = () => {
   failedServerIndices.value.clear();
   allServersExhausted.value = false;
   userManuallySelectedServer.value = false;
-  activeServerIndex.value = 0;
-  showFallbackNotice(`Retrying ${SERVERS[0].name}...`);
-  if (isPlaying.value) {
-    startWatchdog();
-  }
+  showFallbackNotice(`Retrying with ${SERVERS[DEFAULT_SERVER_INDEX].name}...`);
+  switchStream(() => {
+    activeServerIndex.value = DEFAULT_SERVER_INDEX;
+  });
 };
 
 const selectServer = (idx: number) => {
   if (idx < 0 || idx >= SERVERS.length) return;
+  if (idx === activeServerIndex.value && isPlaying.value) {
+    showServerMenu.value = false;
+    tvSpatialNav.clearFocus();
+    return;
+  }
   userManuallySelectedServer.value = true;
   failedServerIndices.value.delete(idx);
   allServersExhausted.value = false;
-  clearWatchdog();
-  activeServerIndex.value = idx;
   showServerMenu.value = false;
+  tvSpatialNav.clearFocus();
   showFallbackNotice(`Selected ${SERVERS[idx].name}`);
   triggerLight();
-  if (isPlaying.value) {
-    startWatchdog();
-  }
+
+  switchStream(() => {
+    activeServerIndex.value = idx;
+  });
 };
 
 const nextServerManual = () => {
@@ -592,10 +748,12 @@ const markStreamHealthy = () => {
   }
 };
 
+// 1-minute load timeout (60,000ms): only switch server if player fails to load for 60 seconds
+const LOAD_TIMEOUT_MS = 60000;
+
 /**
- * Smart Two-Phase Watchdog:
- * Phase 1: 10s window to establish connection & receive HTML frame load
- * Phase 2: 7s post-load buffer grace period for media playback signals
+ * Watchdog: waits for 1 full minute (60s) for stream to load.
+ * Only triggers server fallback if the player does not load within 60s.
  */
 const startWatchdog = () => {
   clearWatchdog();
@@ -606,46 +764,71 @@ const startWatchdog = () => {
   isStreamHealthy.value = false;
   const currentIndex = activeServerIndex.value;
 
-  // Phase 1: Connection timeout
   connectionWatchdogTimer = setTimeout(() => {
     if (activeServerIndex.value === currentIndex && isPlaying.value && !isIframeLoaded.value) {
-      console.warn(`[StreamPlayer] Connection timeout (10s) on ${SERVERS[currentIndex].name}`);
-      triggerNextFallback('Connection timed out (10s)');
+      console.warn(`[StreamPlayer] Stream did not load within 1 minute on ${SERVERS[currentIndex].name}`);
+      triggerNextFallback('Did not load for 1 minute');
     }
-  }, 10000);
+  }, LOAD_TIMEOUT_MS);
 };
 
-const handleIframeLoad = () => {
+const handleIframeLoad = (event?: Event) => {
   isIframeLoaded.value = true;
+  isStreamLoading.value = false;
+  // Frame successfully loaded: cancel the 1-minute timeout.
   if (connectionWatchdogTimer) {
     clearTimeout(connectionWatchdogTimer);
     connectionWatchdogTimer = null;
   }
+  if (streamGraceTimer) {
+    clearTimeout(streamGraceTimer);
+    streamGraceTimer = null;
+  }
 
-  const currentIndex = activeServerIndex.value;
-
-  // Phase 2: Post-load buffer grace period (7 seconds)
-  if (streamGraceTimer) clearTimeout(streamGraceTimer);
-  streamGraceTimer = setTimeout(() => {
-    if (
-      activeServerIndex.value === currentIndex &&
-      isPlaying.value &&
-      !isStreamHealthy.value &&
-      isStreamLoading.value
-    ) {
-      console.warn(`[StreamPlayer] Stream buffering stalled on ${SERVERS[currentIndex].name}`);
-      triggerNextFallback('Stream buffering stalled');
-    } else {
-      isStreamLoading.value = false;
+  // Check if iframe content is accessible and contains "we couldn't find that" or not found response
+  try {
+    const iframe = (event?.target as HTMLIFrameElement) || (event?.currentTarget as HTMLIFrameElement);
+    const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+    if (doc && (doc.body || doc.title)) {
+      const text = (doc.body?.innerText || doc.body?.textContent || '').toLowerCase();
+      const title = (doc.title || '').toLowerCase();
+      const combined = `${title} ${text}`;
+      if (
+        combined.includes("we couldn't find that") ||
+        combined.includes("we coudnt find that") ||
+        combined.includes("couldn't find that") ||
+        combined.includes("could not find that") ||
+        combined.includes("coudnt find that") ||
+        combined.includes("we couldn't find") ||
+        combined.includes("could not find") ||
+        combined.includes("couldn't find") ||
+        combined.includes("coudnt find") ||
+        combined.includes("not find that") ||
+        combined.includes("can't find that") ||
+        combined.includes("cannot find that") ||
+        combined.includes("media not found") ||
+        combined.includes("video not found") ||
+        combined.includes("stream not found") ||
+        combined.includes("file not found") ||
+        combined.includes("404 not found") ||
+        combined.includes("no stream available") ||
+        combined.includes("no source found")
+      ) {
+        console.warn(`[StreamPlayer] Detected "not found" response inside iframe on ${activeServer.value.name}`);
+        triggerNextFallback('Media not found ("we couldn\'t find that")');
+      }
     }
-  }, 7000);
+  } catch {
+    // Cross-origin restrictions are normal for embedded players; postMessage handles these
+  }
 };
 
 const handleIframeError = () => {
-  triggerNextFallback('Stream failed to load');
+  triggerNextFallback('Media not found');
 };
 
 const handleWindowMessage = (event: MessageEvent) => {
+  if (isSwitchingServer.value) return;
   try {
     const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
     if (!data) return;
@@ -662,12 +845,26 @@ const handleWindowMessage = (event: MessageEvent) => {
         stopAndClose();
         return;
       }
-      if (data.type === 'cinesrc:error') {
-        triggerNextFallback('CineSrc playback error');
+      if (data.type === 'cinesrc:error' || data.type === 'cinesrc:notfound') {
+        const errMsg = String(data.message || data.error || '').toLowerCase();
+        if (
+          data.type === 'cinesrc:notfound' ||
+          errMsg.includes('not found') ||
+          errMsg.includes('no stream') ||
+          errMsg.includes("couldn't find") ||
+          errMsg.includes("coudnt find")
+        ) {
+          triggerNextFallback('Media not found');
+        }
         return;
       }
       if (data.type === 'cinesrc:ready' || data.type === 'cinesrc:playing') {
+        isStreamPaused.value = false;
         markStreamHealthy();
+        return;
+      }
+      if (data.type === 'cinesrc:pause' || data.type === 'cinesrc:paused') {
+        isStreamPaused.value = true;
         return;
       }
     }
@@ -687,20 +884,54 @@ const handleWindowMessage = (event: MessageEvent) => {
       data.status === 'playing';
 
     if (isSuccessSignal) {
+      if (eventType === 'playing' || eventType === 'play') {
+        isStreamPaused.value = false;
+      }
       markStreamHealthy();
       return;
     }
 
-    // Explicit error signals
-    const isErrorSignal =
-      eventType === 'error' ||
-      eventType === 'player_error' ||
-      eventType === 'media_error' ||
-      eventType === 'hlserror' ||
-      data.error === true;
+    if (eventType === 'pause' || eventType === 'paused') {
+      isStreamPaused.value = true;
+      return;
+    }
 
-    if (isErrorSignal) {
-      triggerNextFallback('Stream error reported by player');
+    // Only switch when media is explicitly not found (e.g. "we couldn't find that", 404, no stream)
+    const rawDataStr = (typeof event.data === 'string' ? event.data : JSON.stringify(data)).toLowerCase();
+    const isMediaNotFound =
+      eventType === 'media_not_found' ||
+      eventType === 'not_found' ||
+      eventType === 'video_not_found' ||
+      eventType === 'stream_not_found' ||
+      eventType === 'file_not_found' ||
+      eventType === '404' ||
+      data.status === 'not_found' ||
+      data.status === 404 ||
+      data.code === 404 ||
+      rawDataStr.includes("we couldn't find that") ||
+      rawDataStr.includes("we coudnt find that") ||
+      rawDataStr.includes("couldn't find that") ||
+      rawDataStr.includes("could not find that") ||
+      rawDataStr.includes("coudnt find that") ||
+      rawDataStr.includes("we couldn't find") ||
+      rawDataStr.includes("could not find") ||
+      rawDataStr.includes("couldn't find") ||
+      rawDataStr.includes("coudnt find") ||
+      rawDataStr.includes("not find that") ||
+      rawDataStr.includes("can't find that") ||
+      rawDataStr.includes("cannot find that") ||
+      rawDataStr.includes('media not found') ||
+      rawDataStr.includes('video not found') ||
+      rawDataStr.includes('stream not found') ||
+      rawDataStr.includes('file not found') ||
+      rawDataStr.includes('no stream found') ||
+      rawDataStr.includes('source not found') ||
+      rawDataStr.includes('content unavailable') ||
+      rawDataStr.includes('media unavailable') ||
+      rawDataStr.includes('video unavailable');
+
+    if (isMediaNotFound) {
+      triggerNextFallback('Media not found ("we couldn\'t find that")');
     }
   } catch {}
 };
@@ -723,32 +954,53 @@ const loadEpisodesForSeason = async (sn: number) => {
 
 const handleSeasonChange = async (event: Event) => {
   const target = event.target as HTMLSelectElement;
-  currentSeason.value = parseInt(target.value, 10);
-  currentEpisode.value = 1;
-  fallbackNotice.value = '';
+  const newSeason = parseInt(target.value, 10);
   triggerLight();
-  emit('episode-change', { season: currentSeason.value, episode: currentEpisode.value });
-  await loadEpisodesForSeason(currentSeason.value);
+  emit('episode-change', { season: newSeason, episode: 1 });
+  switchStream(() => {
+    currentSeason.value = newSeason;
+    currentEpisode.value = 1;
+    failedServerIndices.value.clear();
+    allServersExhausted.value = false;
+    fallbackNotice.value = '';
+  });
+  await loadEpisodesForSeason(newSeason);
 };
 
 const handleEpisodeSelect = (epNum: number) => {
-  currentEpisode.value = epNum;
-  fallbackNotice.value = '';
+  if (currentEpisode.value === epNum && isPlaying.value) return;
   triggerLight();
-  emit('episode-change', { season: currentSeason.value, episode: currentEpisode.value });
-  startPlaying(true);
+  emit('episode-change', { season: currentSeason.value, episode: epNum });
+  switchStream(() => {
+    currentEpisode.value = epNum;
+    failedServerIndices.value.clear();
+    allServersExhausted.value = false;
+    fallbackNotice.value = '';
+    isPlaying.value = true;
+  });
+  if (!isFullscreen.value) {
+    enterFullscreen();
+  }
 };
 
 const playEpisode = async (seasonNum: number, epNum: number) => {
-  if (currentSeason.value !== seasonNum) {
-    currentSeason.value = seasonNum;
-    await loadEpisodesForSeason(seasonNum);
-  }
-  currentEpisode.value = epNum;
-  fallbackNotice.value = '';
+  if (currentSeason.value === seasonNum && currentEpisode.value === epNum && isPlaying.value) return;
   triggerLight();
-  emit('episode-change', { season: currentSeason.value, episode: currentEpisode.value });
-  startPlaying(true);
+  emit('episode-change', { season: seasonNum, episode: epNum });
+  switchStream(() => {
+    currentSeason.value = seasonNum;
+    currentEpisode.value = epNum;
+    failedServerIndices.value.clear();
+    allServersExhausted.value = false;
+    fallbackNotice.value = '';
+    isPlaying.value = true;
+  });
+  if (currentSeason.value !== seasonNum) {
+    loadEpisodesForSeason(seasonNum);
+  }
+  if (!isFullscreen.value) {
+    enterFullscreen();
+  }
 };
 
 defineExpose({
@@ -762,11 +1014,16 @@ defineExpose({
   seasons,
   episodes,
   activeServerIndex,
-  selectServer
+  selectServer,
+  openServerMenu,
+  closeServerMenu,
+  togglePlayPause
 });
 
 const startPlaying = async (fullscreen = true) => {
   triggerMedium();
+  isStreamPaused.value = false;
+  showPlaybackHud.value = false;
   isPlaying.value = true;
   startWatchdog();
   if (fullscreen) {
@@ -775,6 +1032,10 @@ const startPlaying = async (fullscreen = true) => {
 };
 
 const enterFullscreen = async () => {
+  if (isFullscreen.value) return;
+  if (isPlaying.value) {
+    killActiveIframes();
+  }
   isFullscreen.value = true;
 
   // 1. Lock device orientation to landscape (skip on TV)
@@ -803,14 +1064,16 @@ const enterFullscreen = async () => {
     await NavigationBar.hide();
   } catch {}
 
-  // 3. Request DOM Fullscreen
-  try {
-    const elem = document.documentElement;
-    if (elem.requestFullscreen && !document.fullscreenElement) {
-      await elem.requestFullscreen();
+  // 3. Request DOM Fullscreen (skip on TV mode where display is already fullscreen)
+  if (!isTvMode.value) {
+    try {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen && !document.fullscreenElement) {
+        await elem.requestFullscreen();
+      }
+    } catch {
+      // WebKit / iOS fallback
     }
-  } catch {
-    // WebKit / iOS fallback
   }
 };
 
@@ -821,18 +1084,23 @@ const stopAndClose = async () => {
   clearWatchdog();
   allServersExhausted.value = false;
   showServerMenu.value = false;
+  showEpisodesMenu.value = false;
+
+  // Immediately kill all iframe audio and media decoders
+  killActiveIframes();
+  isSwitchingServer.value = true;
 
   // Hide the fullscreen overlay first (instant)
   isFullscreen.value = false;
 
-  // 1. Restore device orientation back to portrait (skip on TV)
+  // 1. Restore device orientation by unlocking (skip on TV)
   if (!isTvMode.value) {
     try {
-      await ScreenOrientation.lock({ orientation: 'portrait' });
+      await ScreenOrientation.unlock();
     } catch {
       try {
-        if (screen.orientation && (screen.orientation as any).lock) {
-          await (screen.orientation as any).lock('portrait');
+        if (screen.orientation && (screen.orientation as any).unlock) {
+          await (screen.orientation as any).unlock();
         }
       } catch {}
     }
@@ -851,45 +1119,28 @@ const stopAndClose = async () => {
     await NavigationBar.hide();
   } catch {}
 
-  // 3. Exit DOM Fullscreen
-  try {
-    if (document.exitFullscreen && document.fullscreenElement) {
-      await document.exitFullscreen();
-    }
-  } catch {}
+  // 3. Exit DOM Fullscreen (skip on TV)
+  if (!isTvMode.value) {
+    try {
+      if (document.exitFullscreen && document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch {}
+  }
 
-  // 4. Wait for the orientation/viewport to actually return to portrait (height >= width)
-  //    before swapping the DOM back to placeholder and emitting close (mobile only).
-  //    This prevents the main page underneath from suffering layout shift or visual snap.
+  // 4. Brief RAF pause to let viewport stabilize cleanly
   if (!isTvMode.value) {
     await new Promise<void>((resolve) => {
-      if (window.innerHeight >= window.innerWidth) {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        return;
-      }
-      let resolved = false;
-      const finish = () => {
-        if (!resolved) {
-          resolved = true;
-          window.removeEventListener('resize', onResize);
-          window.removeEventListener('orientationchange', onResize);
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        }
-      };
-      const onResize = () => {
-        if (window.innerHeight >= window.innerWidth) {
-          finish();
-        }
-      };
-      window.addEventListener('resize', onResize, { passive: true });
-      window.addEventListener('orientationchange', onResize, { passive: true });
-      setTimeout(finish, 260);
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
   }
 
   if (fallbackNoticeTimer) clearTimeout(fallbackNoticeTimer);
   isPlaying.value = false;
+  isStreamPaused.value = false;
+  showPlaybackHud.value = false;
   isClosing.value = false;
+  isSwitchingServer.value = false;
   emit('close');
 };
 
@@ -897,24 +1148,68 @@ const handleKeyDown = (e: KeyboardEvent) => {
   const key = e.key;
   const keyCode = e.keyCode || e.which;
 
-  if (isPlaying.value || isFullscreen.value) {
-    showControls.value = true;
-    resetControlsTimeout();
-  }
+  const isUp = key === 'ArrowUp' || keyCode === 19 || keyCode === 38;
 
   // Back button (Escape, Android Back keyCode 4)
   if (key === 'Escape' || keyCode === 27 || keyCode === 4) {
     if (showServerMenu.value) {
       showServerMenu.value = false;
+      tvSpatialNav.clearFocus();
       return;
     }
     if (showEpisodesMenu.value) {
       showEpisodesMenu.value = false;
+      tvSpatialNav.clearFocus();
       return;
     }
     if (isFullscreen.value || isPlaying.value) {
       stopAndClose();
+      return;
     }
+  }
+
+  // D-Pad UP: If playing video and no menu is open, directly open Server Selection menu!
+  if (isUp && isPlaying.value && !showServerMenu.value && !showEpisodesMenu.value) {
+    e.preventDefault();
+    e.stopPropagation();
+    openServerMenu(true);
+    return;
+  }
+
+  // D-Pad Center / Enter / Space / MediaPlayPause (Android TV keycodes 23, 66, 179)
+  const isCenter =
+    key === 'Enter' ||
+    key === ' ' ||
+    key === 'Select' ||
+    key === 'Ok' ||
+    key === 'MediaPlayPause' ||
+    keyCode === 23 || // KEYCODE_DPAD_CENTER
+    keyCode === 13 || // KEYCODE_ENTER
+    keyCode === 66 || // KEYCODE_ENTER (Android)
+    keyCode === 179;  // KEYCODE_MEDIA_PLAY_PAUSE
+
+  if (isCenter && isPlaying.value) {
+    const activeEl = document.activeElement as HTMLElement | null;
+    const isInteractive =
+      activeEl &&
+      (activeEl.tagName === 'BUTTON' || activeEl.tagName === 'A' || activeEl.classList.contains('menu-server-item') || activeEl.classList.contains('theater-ep-pill')) &&
+      !activeEl.classList.contains('fullscreen-video-frame') &&
+      !activeEl.classList.contains('theater-touch-wake-zone') &&
+      !activeEl.classList.contains('inline-touch-wake-zone');
+
+    if (showServerMenu.value || showEpisodesMenu.value || isInteractive) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    togglePlayPause();
+    return;
+  }
+
+  if (isPlaying.value || isFullscreen.value) {
+    showControls.value = true;
+    resetControlsTimeout();
   }
 };
 
@@ -1004,6 +1299,10 @@ watch([isPlaying, isFullscreen], ([playing]) => {
 });
 
 onMounted(async () => {
+  (window as any).__WATZEM_TOGGLE_PLAY_PAUSE__ = togglePlayPause;
+  (window as any).__WATZEM_OPEN_SERVER_MENU__ = openServerMenu;
+  (window as any).__WATZEM_CLOSE_SERVER_MENU__ = closeServerMenu;
+  window.addEventListener('watzem-toggle-play-pause', togglePlayPause);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('message', handleWindowMessage);
   window.addEventListener('mousemove', handleUserActivity, { passive: true });
@@ -1039,42 +1338,51 @@ onMounted(async () => {
     currentEpisode.value = props.initialEpisode;
   }
 
-  if (isTv.value) {
-    loadingTvData.value = true;
-    try {
-      const details = await getTvDetails(props.item.id);
-      seasons.value = (details.seasons || []).filter((s) => s.season_number > 0);
-      if (seasons.value.length > 0) {
-        if (props.initialSeason && seasons.value.some((s) => s.season_number === props.initialSeason)) {
-          currentSeason.value = props.initialSeason;
-        } else {
-          currentSeason.value = seasons.value[0].season_number;
-        }
-        await loadEpisodesForSeason(currentSeason.value);
-        if (props.initialEpisode && episodes.value.some((ep) => ep.episode_number === props.initialEpisode)) {
-          currentEpisode.value = props.initialEpisode;
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching TV details:', err);
-    } finally {
-      loadingTvData.value = false;
-    }
-  }
-
-  // Proactively test which server has a working stream and set as default
-  await probeAndSetDefaultServer();
-
+  // 1. Immediately start playing on mount without waiting for network requests
   if (props.autoPlay) {
     startPlaying(true);
   }
 
-  // Load IMDB/TMDB photo slideshow and trailer in the background
+  // 2. Load TV seasons & episodes in background without stalling playback
+  if (isTv.value) {
+    (async () => {
+      loadingTvData.value = true;
+      try {
+        const details = await getTvDetails(props.item.id);
+        seasons.value = (details.seasons || []).filter((s) => s.season_number > 0);
+        if (seasons.value.length > 0) {
+          if (props.initialSeason && seasons.value.some((s) => s.season_number === props.initialSeason)) {
+            currentSeason.value = props.initialSeason;
+          } else if (!currentSeason.value) {
+            currentSeason.value = seasons.value[0].season_number;
+          }
+          await loadEpisodesForSeason(currentSeason.value);
+          if (props.initialEpisode && episodes.value.some((ep) => ep.episode_number === props.initialEpisode)) {
+            currentEpisode.value = props.initialEpisode;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching TV details:', err);
+      } finally {
+        loadingTvData.value = false;
+      }
+    })();
+  }
+
+  // 3. Background server probe, slideshow, and trailers
+  probeAndSetDefaultServer();
   loadSlideImages();
   loadTrailer();
 });
 
 onUnmounted(async () => {
+  delete (window as any).__WATZEM_TOGGLE_PLAY_PAUSE__;
+  delete (window as any).__WATZEM_OPEN_SERVER_MENU__;
+  delete (window as any).__WATZEM_CLOSE_SERVER_MENU__;
+  window.removeEventListener('watzem-toggle-play-pause', togglePlayPause);
+  if (playbackHudTimer) clearTimeout(playbackHudTimer);
+  killActiveIframes();
+  isSwitchingServer.value = true;
   stopSlideshow();
   clearWatchdog();
   window.removeEventListener('keydown', handleKeyDown);
@@ -1098,10 +1406,10 @@ onUnmounted(async () => {
     } catch {}
   }
 
-  // Guarantee portrait mode and keep fullscreen when player unmounts (mobile only)
+  // Unlock orientation and keep fullscreen when player unmounts (mobile only)
   if (!isTvMode.value) {
     try {
-      await ScreenOrientation.lock({ orientation: 'portrait' });
+      await ScreenOrientation.unlock();
     } catch {}
   }
   try {
@@ -1117,24 +1425,22 @@ watch(
     failedServerIndices.value.clear();
     allServersExhausted.value = false;
     userManuallySelectedServer.value = false;
-    recommendedServerIndex.value = null;
-    serverLatencies.value = {};
-    serverStatusMap.value = {};
-    activeServerIndex.value = 0;
+    activeServerIndex.value = DEFAULT_SERVER_INDEX;
+    recommendedServerIndex.value = DEFAULT_SERVER_INDEX;
     fallbackNotice.value = '';
-    currentSeason.value = 1;
-    currentEpisode.value = 1;
-    await probeAndSetDefaultServer();
+    currentSeason.value = props.initialSeason || 1;
+    currentEpisode.value = props.initialEpisode || 1;
     if (props.autoPlay) {
       startPlaying(true);
     }
+    probeAndSetDefaultServer();
   }
 );
 
-watch([currentSeason, currentEpisode], () => {
+watch([currentSeason, currentEpisode], (newVal, oldVal) => {
+  if (!oldVal || (newVal[0] === oldVal[0] && newVal[1] === oldVal[1])) return;
   failedServerIndices.value.clear();
   allServersExhausted.value = false;
-  probeAndSetDefaultServer();
 });
 </script>
 
@@ -1237,7 +1543,7 @@ watch([currentSeason, currentEpisode], () => {
       <!-- Inline Video with Server Controls and Exit button -->
       <transition name="player-fade">
       <div
-        v-if="isPlaying"
+        v-if="isPlaying && !isFullscreen"
         class="inline-player-wrap"
         :class="{ 'in-pip-mode': isInPipMode, 'controls-hidden': !showControls }"
         @pointermove="handleUserActivity"
@@ -1251,27 +1557,39 @@ watch([currentSeason, currentEpisode], () => {
         ></div>
 
         <iframe
-          :key="streamUrl"
+          v-if="!isSwitchingServer"
+          :key="`inline-${activeServerIndex}-${currentSeason}-${currentEpisode}`"
           :src="streamUrl"
           class="stream-iframe"
-          allow="autoplay; encrypted-media; fullscreen; picture-in-picture; accelerometer; gyroscope"
+          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowfullscreen
           referrerpolicy="no-referrer-when-downgrade"
           @load="handleIframeLoad"
           @error="handleIframeError"
         ></iframe>
 
+        <!-- Play / Pause Center HUD Indicator (Inline) -->
+        <transition name="hud-pop">
+          <div v-if="showPlaybackHud" class="playback-hud-overlay" :class="{ 'is-paused': playbackHudIcon === 'pause' }">
+            <div class="playback-hud-circle">
+              <Pause v-if="playbackHudIcon === 'pause'" :size="32" class="hud-icon" />
+              <Play v-else :size="32" class="hud-icon play" />
+            </div>
+            <span class="hud-label font-mono">{{ playbackHudIcon === 'pause' ? 'PAUSED' : 'PLAYING' }}</span>
+          </div>
+        </transition>
+
         <!-- Exhausted Servers Overlay (Inline) -->
         <transition name="hint-fade">
           <div v-if="allServersExhausted" class="exhausted-screen-overlay">
             <div class="exhausted-card">
               <AlertCircle :size="28" class="exhausted-card-icon" />
-              <h4 class="exhausted-card-title">All 7 Servers Attempted</h4>
+              <h4 class="exhausted-card-title">All {{ SERVERS.length }} Servers Attempted</h4>
               <p class="exhausted-card-desc">No active stream responded across current mirrors for this title.</p>
               <div class="exhausted-btn-row">
                 <button class="exhausted-retry-btn" @click.stop="retryAllServers">
                   <RotateCw :size="13" />
-                  Retry Server 1
+                  Retry Random Server
                 </button>
                 <button class="exhausted-pick-btn" @click.stop="showServerMenu = true">
                   <Server :size="13" />
@@ -1541,27 +1859,39 @@ watch([currentSeason, currentEpisode], () => {
         <!-- Video Frame -->
         <div class="fullscreen-video-frame" @click="toggleControls">
           <iframe
-            :key="streamUrl"
+            v-if="!isSwitchingServer"
+            :key="`fullscreen-${activeServerIndex}-${currentSeason}-${currentEpisode}`"
             :src="streamUrl"
             class="fullscreen-iframe"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture; accelerometer; gyroscope"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowfullscreen
             referrerpolicy="no-referrer-when-downgrade"
             @load="handleIframeLoad"
             @error="handleIframeError"
           ></iframe>
 
+          <!-- Play / Pause Center HUD Indicator (Fullscreen Theater) -->
+          <transition name="hud-pop">
+            <div v-if="showPlaybackHud" class="playback-hud-overlay" :class="{ 'is-paused': playbackHudIcon === 'pause' }">
+              <div class="playback-hud-circle">
+                <Pause v-if="playbackHudIcon === 'pause'" :size="48" class="hud-icon" />
+                <Play v-else :size="48" class="hud-icon play" />
+              </div>
+              <span class="hud-label font-mono">{{ playbackHudIcon === 'pause' ? 'PAUSED' : 'PLAYING' }}</span>
+            </div>
+          </transition>
+
           <!-- Exhausted Servers Overlay (Theater Mode) -->
           <transition name="hint-fade">
             <div v-if="allServersExhausted" class="exhausted-screen-overlay" @click.stop>
               <div class="exhausted-card">
                 <AlertCircle :size="36" class="exhausted-card-icon" />
-                <h3 class="exhausted-card-title">All 7 Mirrors Attempted</h3>
+                <h3 class="exhausted-card-title">All {{ SERVERS.length }} Mirrors Attempted</h3>
                 <p class="exhausted-card-desc">None of the available streaming mirrors responded in time for this title.</p>
                 <div class="exhausted-btn-row">
                   <button class="exhausted-retry-btn" @click.stop="retryAllServers">
                     <RotateCw :size="15" />
-                    Retry Server 1
+                    Retry Random Mirror
                   </button>
                   <button class="exhausted-pick-btn" @click.stop="showServerMenu = true">
                     <Server :size="15" />
@@ -2484,7 +2814,7 @@ watch([currentSeason, currentEpisode], () => {
 
 .theater-top-controls {
   position: absolute;
-  top: 8px;
+  top: max(var(--safe-top, 0px), 8px);
   left: max(var(--safe-left, 0px), 12px);
   right: max(var(--safe-right, 0px), 12px);
   display: flex;
@@ -2808,7 +3138,7 @@ watch([currentSeason, currentEpisode], () => {
 
 @media (min-width: 768px) {
   .theater-top-controls {
-    top: 10px;
+    top: max(var(--safe-top, 0px), 10px);
     left: max(calc(var(--safe-left, 0px) + 20px), 20px);
     right: max(calc(var(--safe-right, 0px) + 20px), 20px);
   }
@@ -3119,5 +3449,92 @@ watch([currentSeason, currentEpisode], () => {
 .exhausted-pick-btn:hover {
   background: rgba(255, 255, 255, 0.18);
   transform: translateY(-1px);
+}
+
+/* ── Playback HUD (Play / Pause D-Pad Center Feedback) ─────────────────────── */
+.playback-hud-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+  z-index: 95;
+  user-select: none;
+}
+
+.playback-hud-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 28px rgba(245, 158, 11, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.playback-hud-circle .hud-icon {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6));
+}
+
+.playback-hud-circle .hud-icon.play {
+  margin-left: 4px; /* visually center play triangle */
+  fill: currentColor;
+}
+
+.playback-hud-overlay.is-paused .playback-hud-circle {
+  border-color: rgba(245, 158, 11, 0.65);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 35px rgba(245, 158, 11, 0.6);
+  color: #f59e0b;
+}
+
+.hud-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-transform: uppercase;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.playback-hud-overlay.is-paused .hud-label {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* Smooth pop transition */
+.hud-pop-enter-active {
+  transition: all 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.hud-pop-leave-active {
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hud-pop-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.65);
+}
+
+.hud-pop-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(1.15);
 }
 </style>

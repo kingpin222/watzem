@@ -142,7 +142,16 @@ class TvSpatialNavManager {
     const isDown = key === 'ArrowDown' || keyCode === 20 || keyCode === 40;
     const isLeft = key === 'ArrowLeft' || keyCode === 21 || keyCode === 37;
     const isRight = key === 'ArrowRight' || keyCode === 22 || keyCode === 39;
-    const isEnter = key === 'Enter' || key === ' ' || keyCode === 23 || keyCode === 13 || keyCode === 66;
+    const isEnter =
+      key === 'Enter' ||
+      key === ' ' ||
+      key === 'Select' ||
+      key === 'Ok' ||
+      key === 'MediaPlayPause' ||
+      keyCode === 23 || // KEYCODE_DPAD_CENTER
+      keyCode === 13 || // KEYCODE_ENTER
+      keyCode === 66 || // KEYCODE_ENTER (Android)
+      keyCode === 179;  // KEYCODE_MEDIA_PLAY_PAUSE
     const isBack = key === 'Escape' || key === 'Backspace' || keyCode === 4 || keyCode === 111 || keyCode === 27;
 
     // Skip handling if inside text input (allow typing) unless navigating away
@@ -268,6 +277,45 @@ class TvSpatialNavManager {
     return false;
   }
 
+  private isInteractivePlayerButton(el: HTMLElement | null): boolean {
+    if (!el || !document.body.contains(el) || !this.isElementVisible(el)) return false;
+
+    // Filter out full-frame touch wake layers and player containers
+    if (
+      el.classList.contains('fullscreen-video-frame') ||
+      el.classList.contains('theater-touch-wake-zone') ||
+      el.classList.contains('inline-touch-wake-zone') ||
+      el.classList.contains('fullscreen-theater-overlay') ||
+      el.classList.contains('inline-player-wrap') ||
+      el.classList.contains('trailer-frame-wrap') ||
+      el.classList.contains('trailer-modal-backdrop') ||
+      el.tagName === 'BODY'
+    ) {
+      return false;
+    }
+
+    // Must be an actual button, menu item, or episode pill
+    return (
+      el.tagName === 'BUTTON' ||
+      el.tagName === 'A' ||
+      el.classList.contains('menu-server-item') ||
+      el.classList.contains('theater-ep-pill') ||
+      el.classList.contains('theater-server-btn') ||
+      el.classList.contains('theater-next-btn') ||
+      el.classList.contains('floating-theater-exit-btn') ||
+      el.classList.contains('floating-theater-pip-btn') ||
+      el.classList.contains('theater-episodes-btn') ||
+      el.classList.contains('player-server-btn') ||
+      el.classList.contains('player-next-btn') ||
+      el.classList.contains('player-exit-btn') ||
+      el.classList.contains('player-pip-btn') ||
+      el.classList.contains('player-fullscreen-btn') ||
+      el.classList.contains('exhausted-retry-btn') ||
+      el.classList.contains('exhausted-pick-btn') ||
+      el.classList.contains('trailer-close-btn')
+    );
+  }
+
   public handleCenterAction(): boolean {
     const now = performance.now();
     if (now - this.lastCenterClickTime < 280) {
@@ -275,50 +323,48 @@ class TvSpatialNavManager {
     }
 
     if (this.isPlayerActive()) {
-      const buttonsShowing = this.arePlayerButtonsShowing();
+      // 1. Check if dropdown menu is open (Server selector, Episodes selector)
+      const openMenu = document.querySelector(
+        '.theater-server-menu, .theater-episodes-menu, .player-server-menu'
+      ) as HTMLElement | null;
+      const isMenuOpen = openMenu && window.getComputedStyle(openMenu).display !== 'none';
 
-      // If server option / change / exit buttons are showing:
-      // DISABLE CENTER CLICK IN THE MIDDLE!
-      if (buttonsShowing) {
+      // 2. Check if exhausted mirrors overlay is open
+      const exhausted = document.querySelector('.exhausted-screen-overlay') as HTMLElement | null;
+      const isExhaustedOpen = exhausted && window.getComputedStyle(exhausted).display !== 'none';
+
+      // 3. Check if user intentionally navigated focus onto an interactive control button with D-pad arrows
+      const hasFocusedButton = this.isInteractivePlayerButton(this.currentFocused);
+
+      if (isMenuOpen || isExhaustedOpen || hasFocusedButton) {
         this.lastCenterClickTime = now;
-
-        // If user has focused a button inside the player or active container, click it!
-        if (this.currentFocused && document.body.contains(this.currentFocused) && this.isElementVisible(this.currentFocused)) {
-          const isPlayerElement = this.currentFocused.closest(
-            '.fullscreen-theater-overlay, .fullscreen-theater-modal, .inline-player-wrap, .trailer-frame-wrap, .trailer-modal-backdrop'
-          );
-          if (isPlayerElement) {
-            this.currentFocused.focus();
-            try {
-              this.currentFocused.click();
-            } catch {}
-            return true;
-          }
-        }
-
-        // If buttons are showing but no player button is currently focused,
-        // automatically focus the first prominent visible player button
-        const scope = this.getActiveScopeContainer();
-        const focusableInPlayer = this.getFocusableElements(scope);
-        if (focusableInPlayer.length > 0) {
-          const preferred = focusableInPlayer.find(el =>
-            el.classList.contains('floating-theater-exit-btn') ||
-            el.classList.contains('theater-server-btn') ||
-            el.classList.contains('theater-next-btn')
-          ) || focusableInPlayer[0];
-
-          this.focusElement(preferred);
+        if (hasFocusedButton && this.currentFocused) {
+          this.currentFocused.focus();
+          try {
+            this.currentFocused.click();
+          } catch {}
           return true;
         }
 
-        // Under no circumstances click in the middle when buttons are showing!
-        return true;
+        // If a menu is open but no specific item was focused yet, focus the active item or first item
+        if (isMenuOpen || isExhaustedOpen) {
+          const container = (openMenu || exhausted) as HTMLElement;
+          const activeItem = container.querySelector<HTMLElement>('.menu-server-item.active, .theater-ep-pill.active');
+          if (activeItem && this.isElementVisible(activeItem)) {
+            this.focusElement(activeItem);
+            return true;
+          }
+          const focusable = this.getFocusableElements(container);
+          if (focusable.length > 0) {
+            this.focusElement(focusable[0]);
+            return true;
+          }
+        }
       }
 
-      // ONLY when buttons are NOT showing (controls hidden / clean video playback):
-      // D-Pad Center clicks the middle of the player to toggle playback or wake controls
+      // 4. Default: User presses D-Pad Center during video playback -> TOGGLE PLAY / PAUSE!
       this.lastCenterClickTime = now;
-      this.clickPlayerCenter();
+      this.togglePlayerPlayback();
       return true;
     }
 
@@ -333,6 +379,44 @@ class TvSpatialNavManager {
     }
 
     return false;
+  }
+
+  public togglePlayerPlayback(): void {
+    // 1. If StreamPlayer has registered global toggle method, execute it!
+    try {
+      const globalToggle = (window as any).__WATZEM_TOGGLE_PLAY_PAUSE__;
+      if (typeof globalToggle === 'function') {
+        globalToggle();
+        return;
+      }
+    } catch (e) {
+      console.warn('[TvSpatialNav] Global togglePlayPause call failed:', e);
+    }
+
+    // 2. Fallback: Broadcast event
+    window.dispatchEvent(new CustomEvent('watzem-toggle-play-pause'));
+
+    // 3. Fallback: PostMessage commands directly to player iframes
+    const iframes = document.querySelectorAll<HTMLIFrameElement>(
+      '.fullscreen-iframe, .stream-iframe, .trailer-iframe, .fullscreen-theater-overlay iframe, .inline-player-wrap iframe'
+    );
+    iframes.forEach((iframe) => {
+      try {
+        const win = iframe.contentWindow;
+        if (!win) return;
+        win.postMessage({ type: 'toggle' }, '*');
+        win.postMessage({ type: 'playpause' }, '*');
+        win.postMessage({ type: 'cinesrc:toggle' }, '*');
+        win.postMessage(JSON.stringify({ event: 'playToggle' }), '*');
+        win.postMessage(JSON.stringify({ method: 'playPause' }), '*');
+        win.postMessage(JSON.stringify({ method: 'playToggle' }), '*');
+        win.postMessage(JSON.stringify({ action: 'toggle' }), '*');
+        win.postMessage(JSON.stringify({ api: 'toggle' }), '*');
+      } catch {}
+    });
+
+    // 4. Fallback: Native Android bridge touch simulation & synthetic click at player center
+    this.clickPlayerCenter();
   }
 
   public clickPlayerCenter(): void {
@@ -386,18 +470,10 @@ class TvSpatialNavManager {
       }
     } catch {}
 
-    // 4. Trigger video frame click if present to toggle player controls
-    const frameEl = document.querySelector('.fullscreen-video-frame, .inline-touch-wake-zone') as HTMLElement | null;
-    if (frameEl) {
-      try {
-        frameEl.click();
-      } catch {}
-    }
-
-    // 5. Visual TV Ripple confirmation at center
+    // 4. Visual TV Ripple confirmation at center
     this.showCenterClickRipple(centerX, centerY);
 
-    // 6. Broadcast event
+    // 5. Broadcast event
     window.dispatchEvent(new CustomEvent('watzem-tv-center-click', {
       detail: { centerX, centerY, relX, relY }
     }));
@@ -439,21 +515,24 @@ class TvSpatialNavManager {
     // 2. Check for active theater player
     const theaterOverlay = document.querySelector('.fullscreen-theater-overlay, .fullscreen-theater-modal') as HTMLElement;
     if (theaterOverlay && window.getComputedStyle(theaterOverlay).display !== 'none') {
-      const openServerMenu = theaterOverlay.querySelector('.theater-server-menu') as HTMLElement | null;
-      const openEpisodesMenu = theaterOverlay.querySelector('.theater-episodes-menu') as HTMLElement | null;
+      const openServerMenu = document.querySelector('.theater-server-menu, .player-server-menu') as HTMLElement | null;
+      const openEpisodesMenu = document.querySelector('.theater-episodes-menu') as HTMLElement | null;
       if (openServerMenu && window.getComputedStyle(openServerMenu).display !== 'none') {
-        const serverBtn = theaterOverlay.querySelector('.theater-server-btn') as HTMLElement | null;
-        if (serverBtn) {
-          serverBtn.click();
-          return true;
+        const closeFn = (window as any).__WATZEM_CLOSE_SERVER_MENU__;
+        if (typeof closeFn === 'function') {
+          closeFn();
+        } else {
+          const serverBtn = theaterOverlay.querySelector('.theater-server-btn, .player-server-btn') as HTMLElement | null;
+          if (serverBtn) serverBtn.click();
         }
+        this.clearFocus();
+        return true;
       }
       if (openEpisodesMenu && window.getComputedStyle(openEpisodesMenu).display !== 'none') {
         const epBtn = theaterOverlay.querySelector('.theater-episodes-btn') as HTMLElement | null;
-        if (epBtn) {
-          epBtn.click();
-          return true;
-        }
+        if (epBtn) epBtn.click();
+        this.clearFocus();
+        return true;
       }
 
       const exitBtn = theaterOverlay.querySelector('.floating-theater-exit-btn, .close-btn') as HTMLElement;
@@ -480,10 +559,82 @@ class TvSpatialNavManager {
       }
     }
 
+    // 5. If focused in content, focus back to Bottom Nav (in portrait/mobile)
+    const bottomNav = document.querySelector('.bottom-nav') as HTMLElement;
+    if (bottomNav && (!this.currentFocused || !bottomNav.contains(this.currentFocused))) {
+      const activeNavTab = bottomNav.querySelector('.nav-tab.active, .nav-tab') as HTMLElement;
+      if (activeNavTab && this.isElementVisible(activeNavTab)) {
+        this.focusElement(activeNavTab);
+        return true;
+      }
+    }
+
     return false;
   }
 
   public navigate(dir: Direction) {
+    const serverMenu = document.querySelector('.theater-server-menu, .player-server-menu') as HTMLElement | null;
+    const isServerMenuOpen = serverMenu && window.getComputedStyle(serverMenu).display !== 'none';
+
+    // 1. If player is active and no menu is open, pressing UP directly opens Server Selection!
+    if (this.isPlayerActive() && !isServerMenuOpen) {
+      const episodesMenu = document.querySelector('.theater-episodes-menu') as HTMLElement | null;
+      const isEpisodesOpen = episodesMenu && window.getComputedStyle(episodesMenu).display !== 'none';
+
+      if (!isEpisodesOpen && dir === 'up') {
+        const openFn = (window as any).__WATZEM_OPEN_SERVER_MENU__;
+        if (typeof openFn === 'function') {
+          openFn(true);
+          return;
+        }
+        const sBtn = document.querySelector('.theater-server-btn, .player-server-btn') as HTMLElement | null;
+        if (sBtn) {
+          sBtn.click();
+          return;
+        }
+      }
+    }
+
+    // 2. If Server Selection menu is open: provide smooth cyclic vertical navigation & wrap-around
+    if (isServerMenuOpen && serverMenu) {
+      const serverItems = Array.from(serverMenu.querySelectorAll<HTMLElement>('.menu-server-item')).filter(el => this.isElementVisible(el));
+      if (serverItems.length > 0) {
+        let currentIndex = this.currentFocused ? serverItems.indexOf(this.currentFocused) : -1;
+        if (currentIndex === -1) {
+          const activeItem = serverMenu.querySelector<HTMLElement>('.menu-server-item.active');
+          currentIndex = activeItem ? serverItems.indexOf(activeItem) : 0;
+          if (currentIndex === -1) currentIndex = 0;
+          this.focusElement(serverItems[currentIndex]);
+          return;
+        }
+
+        if (dir === 'down') {
+          const nextIndex = currentIndex < serverItems.length - 1 ? currentIndex + 1 : 0;
+          this.focusElement(serverItems[nextIndex]);
+          return;
+        } else if (dir === 'up') {
+          const nextIndex = currentIndex > 0 ? currentIndex - 1 : serverItems.length - 1;
+          this.focusElement(serverItems[nextIndex]);
+          return;
+        } else if (dir === 'right') {
+          const epBtn = document.querySelector('.theater-episodes-btn') as HTMLElement | null;
+          if (epBtn && this.isElementVisible(epBtn)) {
+            const closeFn = (window as any).__WATZEM_CLOSE_SERVER_MENU__;
+            if (closeFn) closeFn();
+            this.focusElement(epBtn);
+            return;
+          }
+        } else if (dir === 'left') {
+          const sBtn = document.querySelector('.theater-server-btn, .player-server-btn') as HTMLElement | null;
+          if (sBtn && this.isElementVisible(sBtn)) {
+            this.focusElement(sBtn);
+            return;
+          }
+        }
+        return;
+      }
+    }
+
     const scope = this.getActiveScopeContainer();
     let candidates = this.getFocusableElements(scope);
 
@@ -534,6 +685,7 @@ class TvSpatialNavManager {
     const curCenterX = (currentRect.left + currentRect.right) / 2;
     const curCenterY = (currentRect.top + currentRect.bottom) / 2;
     const isCurrentInSidebar = !!this.currentFocused.closest('.tv-sidebar');
+    const isCurrentInBottomNav = !!this.currentFocused.closest('.bottom-nav');
 
     // Case 1: Moving RIGHT from TV sidebar into content area
     if (isCurrentInSidebar && dir === 'right') {
@@ -564,9 +716,9 @@ class TvSpatialNavManager {
     }
 
     // Case 2: Moving LEFT from content area towards sidebar
-    if (!isCurrentInSidebar && dir === 'left') {
+    if (!isCurrentInSidebar && !isCurrentInBottomNav && dir === 'left') {
       const hasContentLeft = candidates.some(el => {
-        if (el === this.currentFocused || el.closest('.tv-sidebar')) return false;
+        if (el === this.currentFocused || el.closest('.tv-sidebar, .bottom-nav')) return false;
         const r = el.getBoundingClientRect();
         return (r.left + r.right) / 2 < curCenterX - 15;
       });
@@ -593,21 +745,87 @@ class TvSpatialNavManager {
       }
     }
 
+    // Case 3: Moving inside or out of Bottom Nav
+    if (isCurrentInBottomNav) {
+      if (dir === 'left' || dir === 'right') {
+        candidates = candidates.filter(el => !!el.closest('.bottom-nav'));
+      } else if (dir === 'up') {
+        const contentCandidates = candidates.filter(el => !el.closest('.bottom-nav, .tv-sidebar'));
+        if (contentCandidates.length > 0) {
+          const nextEl = this.findBestCandidate(currentRect, contentCandidates, 'up');
+          if (nextEl) {
+            this.focusElement(nextEl);
+            return;
+          }
+          // Fallback: choose visible content candidate closest to bottom of screen
+          let bestEl = contentCandidates[0];
+          let maxBottom = -Infinity;
+          for (const el of contentCandidates) {
+            const r = el.getBoundingClientRect();
+            if (r.bottom > maxBottom && r.top < currentRect.top) {
+              maxBottom = r.bottom;
+              bestEl = el;
+            }
+          }
+          this.focusElement(bestEl);
+          return;
+        }
+      } else if (dir === 'down') {
+        return; // Already at bottom of screen in bottom nav
+      }
+    }
+
+    // Case 4: In content area moving DOWN towards Bottom Nav when at the bottom of content
+    if (!isCurrentInSidebar && !isCurrentInBottomNav && dir === 'down') {
+      const contentBelow = candidates.filter(el => {
+        if (el === this.currentFocused || el.closest('.tv-sidebar, .bottom-nav')) return false;
+        const r = el.getBoundingClientRect();
+        return r.top > curCenterY + 10;
+      });
+
+      if (contentBelow.length === 0) {
+        const bottomNavTabs = candidates.filter(el => !!el.closest('.bottom-nav'));
+        if (bottomNavTabs.length > 0) {
+          let bestTab = bottomNavTabs[0];
+          let minDiff = Infinity;
+          for (const tab of bottomNavTabs) {
+            const tr = tab.getBoundingClientRect();
+            const diff = Math.abs((tr.left + tr.right) / 2 - curCenterX);
+            if (diff < minDiff) {
+              minDiff = diff;
+              bestTab = tab;
+            }
+          }
+          this.focusElement(bestTab);
+          return;
+        }
+      }
+    }
+
     // Scope isolation:
     // When inside sidebar: UP and DOWN must stay strictly within the sidebar
     if (isCurrentInSidebar && (dir === 'up' || dir === 'down')) {
       candidates = candidates.filter(el => !!el.closest('.tv-sidebar'));
     }
 
-    // When inside content: UP, DOWN, and RIGHT must stay strictly within content
-    if (!isCurrentInSidebar && (dir === 'up' || dir === 'down' || dir === 'right')) {
-      candidates = candidates.filter(el => !el.closest('.tv-sidebar'));
+    // When inside bottom nav: LEFT and RIGHT stay strictly within the bottom nav
+    if (isCurrentInBottomNav && (dir === 'left' || dir === 'right')) {
+      candidates = candidates.filter(el => !!el.closest('.bottom-nav'));
+    }
+
+    // When inside content: general spatial scoring stays within content
+    if (!isCurrentInSidebar && !isCurrentInBottomNav) {
+      candidates = candidates.filter(el => !el.closest('.tv-sidebar, .bottom-nav'));
     }
 
     const nextEl = this.findBestCandidate(currentRect, candidates, dir);
 
     if (nextEl) {
       this.focusElement(nextEl);
+    } else if (this.isPlayerActive() && dir === 'down') {
+      // If user is focused on top controls in player and presses DOWN:
+      // Clear focus back to video body so D-Pad Center immediately toggles play/pause!
+      this.clearFocus();
     }
   }
 
@@ -744,8 +962,8 @@ class TvSpatialNavManager {
   public smoothScrollIntoTvView(el: HTMLElement) {
     if (!el) return;
 
-    // 1. Skip scrolling if element is inside fixed TV sidebar
-    if (el.closest('.tv-sidebar')) {
+    // 1. Skip scrolling if element is inside fixed TV sidebar or fixed bottom nav
+    if (el.closest('.tv-sidebar, .bottom-nav')) {
       return;
     }
 
@@ -813,6 +1031,16 @@ class TvSpatialNavManager {
         const scrollOffset = elRect.top - targetY;
         this.scrollPageVertical(scrollOffset);
       }
+    }
+  }
+
+  public clearFocus() {
+    if (this.currentFocused) {
+      this.currentFocused.classList.remove('tv-focused');
+      try {
+        this.currentFocused.blur();
+      } catch {}
+      this.currentFocused = null;
     }
   }
 
@@ -891,6 +1119,10 @@ class TvSpatialNavManager {
   }
 
   public autoFocusInitial() {
+    // Only auto-focus on initial load if in TV mode or D-pad is active
+    if (!document.documentElement.classList.contains('is-tv-mode') && !this.isDpadActive) {
+      return;
+    }
     setTimeout(() => {
       if (!this.currentFocused || !document.body.contains(this.currentFocused)) {
         this.focusFirstVisible();
@@ -899,19 +1131,35 @@ class TvSpatialNavManager {
   }
 
   private getActiveScopeContainer(): HTMLElement {
-    // 1. Fullscreen theater player overlay takes highest priority
+    // 1. Open server menu in player takes highest priority for focused D-pad selection
+    const openServerMenu = document.querySelector(
+      '.theater-server-menu, .player-server-menu'
+    ) as HTMLElement | null;
+    if (openServerMenu && window.getComputedStyle(openServerMenu).display !== 'none') {
+      return openServerMenu;
+    }
+
+    // 2. Open episodes menu in player takes next priority
+    const openEpisodesMenu = document.querySelector(
+      '.theater-episodes-menu'
+    ) as HTMLElement | null;
+    if (openEpisodesMenu && window.getComputedStyle(openEpisodesMenu).display !== 'none') {
+      return openEpisodesMenu;
+    }
+
+    // 3. Fullscreen theater player overlay takes next priority
     const theaterOverlay = document.querySelector('.fullscreen-theater-overlay, .fullscreen-theater-modal') as HTMLElement;
     if (theaterOverlay && window.getComputedStyle(theaterOverlay).display !== 'none') {
       return theaterOverlay;
     }
 
-    // 2. Active modal overlays
+    // 4. Active modal overlays
     const activeModal = document.querySelector('.modal-card, .app-update-modal, .support-modal, .trailer-frame-wrap') as HTMLElement;
     if (activeModal && window.getComputedStyle(activeModal).display !== 'none') {
       return activeModal;
     }
 
-    // 3. Fallback to main document
+    // 5. Fallback to main document
     return document.body;
   }
 

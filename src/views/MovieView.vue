@@ -263,9 +263,9 @@ onUnmounted(() => {
   }
 }
 
-@media (orientation: landscape) and (max-height: 550px) {
+@media (orientation: landscape) {
   .hero-skeleton {
-    height: clamp(240px, 72vh, 320px);
+    height: clamp(220px, 66vh, 360px);
   }
 }
 
@@ -285,10 +285,11 @@ onUnmounted(() => {
   z-index: 40;
 }
 
-@media (orientation: landscape) and (max-height: 550px) {
+@media (orientation: landscape) {
   .category-bar {
-    padding: 0.5rem max(1rem, var(--safe-left, 0px));
-    padding-right: max(1rem, var(--safe-right, 0px));
+    top: 0;
+    padding: 0.5rem max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-left, 0px));
+    padding-right: max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
   }
 }
 
@@ -310,10 +311,10 @@ onUnmounted(() => {
   border-color: var(--accent-amber);
 }
 
-/* Content */
+/* Content - 100% Fluid */
 .content-section {
-  padding: 1.25rem max(1rem, var(--safe-left, 0px));
-  padding-right: max(1rem, var(--safe-right, 0px));
+  padding: 1.25rem max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-left, 0px));
+  padding-right: max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -321,15 +322,15 @@ onUnmounted(() => {
 
 @media (min-width: 768px) and (min-height: 551px) {
   .content-section {
-    padding: 1.75rem max(1.5rem, var(--safe-left, 0px));
-    padding-right: max(1.5rem, var(--safe-right, 0px));
+    padding: 1.75rem max(clamp(1.5rem, 3vw, 3rem), var(--safe-left, 0px));
+    padding-right: max(clamp(1.5rem, 3vw, 3rem), var(--safe-right, 0px));
   }
 }
 
-@media (orientation: landscape) and (max-height: 550px) {
+@media (orientation: landscape) {
   .content-section {
-    padding: 1rem max(1rem, var(--safe-left, 0px));
-    padding-right: max(1rem, var(--safe-right, 0px));
+    padding: 1rem max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-left, 0px));
+    padding-right: max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
     gap: 0.75rem;
   }
 }
@@ -354,7 +355,7 @@ onUnmounted(() => {
   border-radius: 4px;
 }
 
-/* Movies Grid */
+/* Movies Grid - Fluid Auto-Scaling */
 .movies-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -375,10 +376,24 @@ onUnmounted(() => {
   }
 }
 
-@media (orientation: landscape) and (max-height: 550px) {
+@media (orientation: landscape) {
   .movies-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.85rem;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 900px) {
+  .movies-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1200px) {
+  .movies-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.15rem;
   }
 }
 
@@ -392,7 +407,28 @@ onUnmounted(() => {
 @media (min-width: 1280px) {
   .movies-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.35rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .movies-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1.4rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  .movies-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 1.5rem;
+  }
+}
+
+@media (min-width: 2560px) {
+  .movies-grid {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 1.6rem;
   }
 }
 

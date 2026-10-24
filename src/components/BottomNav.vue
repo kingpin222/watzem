@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { TabKey, MediaMode } from '../types';
 import { useWatchlist } from '../composables/useWatchlist';
 import { useHaptics } from '../composables/useHaptics';
+import { tvSpatialNav } from '../services/tvSpatialNav';
 import { Home, Compass, Search, Bookmark } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -25,6 +26,68 @@ const handleSelect = (tab: TabKey) => {
     emit('navigate', tab);
   }
 };
+
+const tabOrder: TabKey[] = ['home', 'explore', 'search', 'watchlist'];
+const tabButtons = ref<Record<string, HTMLElement | null>>({});
+
+const setTabRef = (key: TabKey, el: any) => {
+  if (el) {
+    tabButtons.value[key] = el as HTMLElement;
+  }
+};
+
+const handleKeyDown = (e: KeyboardEvent, current: TabKey) => {
+  const currentIndex = tabOrder.indexOf(current);
+  if (currentIndex === -1) return;
+
+  const key = e.key;
+  const keyCode = e.keyCode || e.which;
+
+  const isLeft = key === 'ArrowLeft' || keyCode === 21 || keyCode === 37;
+  const isRight = key === 'ArrowRight' || keyCode === 22 || keyCode === 39;
+  const isUp = key === 'ArrowUp' || keyCode === 19 || keyCode === 38;
+  const isDown = key === 'ArrowDown' || keyCode === 20 || keyCode === 40;
+  const isEnter = key === 'Enter' || key === ' ' || keyCode === 23 || keyCode === 13 || keyCode === 66;
+
+  if (isLeft) {
+    e.preventDefault();
+    e.stopPropagation();
+    const prevKey = tabOrder[(currentIndex - 1 + tabOrder.length) % tabOrder.length];
+    const el = tabButtons.value[prevKey];
+    if (el) {
+      tvSpatialNav.focusElement(el);
+    }
+  } else if (isRight) {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextKey = tabOrder[(currentIndex + 1) % tabOrder.length];
+    const el = tabButtons.value[nextKey];
+    if (el) {
+      tvSpatialNav.focusElement(el);
+    }
+  } else if (isUp) {
+    e.preventDefault();
+    e.stopPropagation();
+    tvSpatialNav.navigate('up');
+  } else if (isDown) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Stay inside bottom nav
+  } else if (isEnter) {
+    e.preventDefault();
+    e.stopPropagation();
+    handleSelect(current);
+  }
+};
+
+onMounted(() => {
+  if (document.documentElement.classList.contains('is-dpad-active')) {
+    const el = tabButtons.value[props.currentTab];
+    if (el) {
+      tvSpatialNav.focusElement(el);
+    }
+  }
+});
 </script>
 
 <template>
@@ -32,9 +95,16 @@ const handleSelect = (tab: TabKey) => {
     <div class="nav-inner">
       <!-- Home Tab -->
       <button
+        :ref="(el) => setTabRef('home', el)"
+        type="button"
         class="nav-tab"
         :class="{ active: currentTab === 'home', 'tv-theme': isTv }"
+        aria-label="Home"
+        tabindex="0"
+        data-tv-focusable="true"
+        data-tab-key="home"
         @click="handleSelect('home')"
+        @keydown="handleKeyDown($event, 'home')"
       >
         <div class="icon-wrap">
           <Home :size="20" stroke-width="2.2" />
@@ -45,9 +115,16 @@ const handleSelect = (tab: TabKey) => {
 
       <!-- Explore Tab -->
       <button
+        :ref="(el) => setTabRef('explore', el)"
+        type="button"
         class="nav-tab"
         :class="{ active: currentTab === 'explore', 'tv-theme': isTv }"
+        aria-label="Explore"
+        tabindex="0"
+        data-tv-focusable="true"
+        data-tab-key="explore"
         @click="handleSelect('explore')"
+        @keydown="handleKeyDown($event, 'explore')"
       >
         <div class="icon-wrap">
           <Compass :size="20" stroke-width="2.2" />
@@ -58,9 +135,16 @@ const handleSelect = (tab: TabKey) => {
 
       <!-- Search Tab -->
       <button
+        :ref="(el) => setTabRef('search', el)"
+        type="button"
         class="nav-tab"
         :class="{ active: currentTab === 'search', 'tv-theme': isTv }"
+        aria-label="Search"
+        tabindex="0"
+        data-tv-focusable="true"
+        data-tab-key="search"
         @click="handleSelect('search')"
+        @keydown="handleKeyDown($event, 'search')"
       >
         <div class="icon-wrap">
           <Search :size="20" stroke-width="2.2" />
@@ -71,9 +155,16 @@ const handleSelect = (tab: TabKey) => {
 
       <!-- Watchlist Tab -->
       <button
+        :ref="(el) => setTabRef('watchlist', el)"
+        type="button"
         class="nav-tab"
         :class="{ active: currentTab === 'watchlist', 'tv-theme': isTv }"
+        aria-label="Watchlist"
+        tabindex="0"
+        data-tv-focusable="true"
+        data-tab-key="watchlist"
         @click="handleSelect('watchlist')"
+        @keydown="handleKeyDown($event, 'watchlist')"
       >
         <div class="icon-wrap">
           <Bookmark :size="20" stroke-width="2.2" />
@@ -95,12 +186,27 @@ const handleSelect = (tab: TabKey) => {
   left: 0;
   right: 0;
   z-index: 50;
-  background: rgba(10, 10, 15, 0.92);
+  background: rgba(10, 10, 15, 0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-subtle);
-  padding-bottom: var(--safe-bottom);
+  padding-bottom: max(var(--safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.45);
   transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.nav-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  height: var(--nav-height, 64px);
+  padding: 0 max(0.5rem, var(--safe-left, 0px));
+  padding-right: max(0.5rem, var(--safe-right, 0px));
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) and (min-height: 551px) {
@@ -117,44 +223,78 @@ const handleSelect = (tab: TabKey) => {
   }
 }
 
-@media (orientation: landscape) and (max-height: 550px) {
+@media (orientation: landscape) {
   .bottom-nav {
     padding-bottom: 0;
   }
-}
-
-.nav-inner {
-  max-width: 600px;
-  margin: 0 auto;
-  height: var(--nav-height);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 max(0.5rem, var(--safe-left, 0px));
-  padding-right: max(0.5rem, var(--safe-right, 0px));
-}
-
-@media (orientation: landscape) and (max-height: 550px) {
   .nav-inner {
-    height: 50px;
+    height: var(--nav-height, 52px);
+    max-width: 500px;
+    padding: 0 max(1.25rem, var(--safe-left, 0px));
+    padding-right: max(1.25rem, var(--safe-right, 0px));
+  }
+  .nav-tab {
+    gap: 2px;
+  }
+  .tab-label {
+    font-size: 0.68rem;
   }
 }
 
 .nav-tab {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
   height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 4px 0;
   color: var(--text-muted);
   transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .nav-tab:active {
   transform: scale(0.92);
+}
+
+/* D-Pad & Keyboard Remote Focus Styling */
+.nav-tab:focus-visible,
+.nav-tab.tv-focused {
+  outline: 2.5px solid var(--accent-amber) !important;
+  outline-offset: -2px !important;
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, 0.16);
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.45), inset 0 0 8px rgba(245, 158, 11, 0.2);
+  color: var(--accent-amber);
+  transform: translateY(-2px) scale(1.06);
+}
+
+.nav-tab.tv-theme:focus-visible,
+.nav-tab.tv-theme.tv-focused {
+  outline: 2.5px solid var(--accent-rose) !important;
+  background: rgba(244, 63, 94, 0.16);
+  box-shadow: 0 0 18px rgba(244, 63, 94, 0.45), inset 0 0 8px rgba(244, 63, 94, 0.2);
+  color: var(--accent-rose);
+}
+
+.nav-tab:focus-visible .icon-wrap,
+.nav-tab.tv-focused .icon-wrap {
+  transform: scale(1.15) translateY(-1px);
+}
+
+.nav-tab:focus-visible .tab-label,
+.nav-tab.tv-focused .tab-label {
+  font-weight: 700;
+  color: #fff;
 }
 
 .icon-wrap {

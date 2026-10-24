@@ -1,6 +1,7 @@
 package com.watzem.app;
 
 import android.app.PictureInPictureParams;
+import android.app.UiModeManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -83,14 +84,40 @@ public class MainActivity extends BridgeActivity {
             }
             return true;
         }
+
+        @Override
+        public void onShowCustomView(View view, CustomViewCallback callback) {
+            // Dismiss custom view callback safely to prevent OpenGL ES in-process GPU crashes
+            if (callback != null) {
+                try {
+                    callback.onCustomViewHidden();
+                } catch (Exception ignored) {}
+            }
+        }
+
+        @Override
+        public void onHideCustomView() {
+            // Safe no-op
+        }
     }
 
-    public int getSafeTopInsetDp() {
+    public boolean isLandscape() {
+        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    public int[] getSafeInsetsDp() {
         int topPx = 0;
+        int bottomPx = 0;
+        int leftPx = 0;
+        int rightPx = 0;
+        boolean isLand = isLandscape();
+
         try {
-            int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-            if (resId > 0) {
-                topPx = getResources().getDimensionPixelSize(resId);
+            if (!isLand) {
+                int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+                if (resId > 0) {
+                    topPx = getResources().getDimensionPixelSize(resId);
+                }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 WindowInsets insets = getWindow().getDecorView().getRootWindowInsets();
@@ -98,15 +125,33 @@ public class MainActivity extends BridgeActivity {
                     DisplayCutout cutout = insets.getDisplayCutout();
                     if (cutout != null) {
                         topPx = Math.max(topPx, cutout.getSafeInsetTop());
+                        bottomPx = Math.max(bottomPx, cutout.getSafeInsetBottom());
+                        leftPx = Math.max(leftPx, cutout.getSafeInsetLeft());
+                        rightPx = Math.max(rightPx, cutout.getSafeInsetRight());
                     }
                 }
             }
         } catch (Exception ignored) {}
 
         float density = getResources().getDisplayMetrics().density;
-        int topDp = density > 0 ? Math.round(topPx / density) : 0;
-        // Standard Android modern notch/cutout is 34-40dp
-        return Math.max(topDp, 36);
+        if (density <= 0) density = 1.0f;
+
+        int topDp = Math.round(topPx / density);
+        int bottomDp = Math.round(bottomPx / density);
+        int leftDp = Math.round(leftPx / density);
+        int rightDp = Math.round(rightPx / density);
+
+        if (!isLand) {
+            topDp = Math.max(topDp, 36);
+            leftDp = 0;
+            rightDp = 0;
+        }
+
+        return new int[]{ topDp, bottomDp, leftDp, rightDp };
+    }
+
+    public int getSafeTopInsetDp() {
+        return getSafeInsetsDp()[0];
     }
 
     public void injectSafeInsets() {
@@ -115,17 +160,43 @@ public class MainActivity extends BridgeActivity {
                 if (this.getBridge() != null) {
                     WebView webView = this.getBridge().getWebView();
                     if (webView != null) {
-                        int safeTop = getSafeTopInsetDp();
+                        int[] insets = getSafeInsetsDp();
+                        int safeTop = insets[0];
+                        int safeBottom = insets[1];
+                        int safeLeft = insets[2];
+                        int safeRight = insets[3];
+                        boolean isLand = isLandscape();
                         String js = "(function() {"
-                            + "  document.documentElement.style.setProperty('--safe-top', '" + safeTop + "px');"
+                            + "  var root = document.documentElement;"
+                            + "  root.style.setProperty('--safe-top', '" + safeTop + "px');"
+                            + "  root.style.setProperty('--safe-bottom', '" + safeBottom + "px');"
+                            + "  root.style.setProperty('--safe-left', '" + safeLeft + "px');"
+                            + "  root.style.setProperty('--safe-right', '" + safeRight + "px');"
                             + "  window.__ANDROID_SAFE_TOP__ = " + safeTop + ";"
-                            + "  document.documentElement.classList.add('is-native-app');"
+                            + "  window.__ANDROID_SAFE_BOTTOM__ = " + safeBottom + ";"
+                            + "  window.__ANDROID_SAFE_LEFT__ = " + safeLeft + ";"
+                            + "  window.__ANDROID_SAFE_RIGHT__ = " + safeRight + ";"
+                            + "  window.__ANDROID_ORIENTATION__ = '" + (isLand ? "landscape" : "portrait") + "';"
+                            + "  root.classList.add('is-native-app');"
+                            + "  root.classList.toggle('is-landscape', " + isLand + ");"
+                            + "  root.classList.toggle('is-portrait', " + (!isLand) + ");"
                             + "})();";
                         webView.evaluateJavascript(js, null);
                     }
                 }
             } catch (Exception ignored) {}
         });
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        hideSystemBars();
+        injectSafeInsets();
+        if (getWindow() != null && getWindow().getDecorView() != null) {
+            getWindow().getDecorView().postDelayed(this::injectSafeInsets, 60);
+            getWindow().getDecorView().postDelayed(this::injectSafeInsets, 250);
+        }
     }
 
     public void hideSystemBars() {
@@ -190,6 +261,7 @@ public class MainActivity extends BridgeActivity {
                 settings.setJavaScriptCanOpenWindowsAutomatically(false);
                 settings.setSupportMultipleWindows(false);
                 settings.setTextZoom(100);
+                webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
                 // Enable D-pad remote navigation focus and touch bridge
                 webView.setFocusable(true);
@@ -207,6 +279,12 @@ public class MainActivity extends BridgeActivity {
                         e.printStackTrace();
                     }
                 });
+                boolean isTv = getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+                    || ((UiModeManager) getSystemService(UI_MODE_SERVICE)).getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
+                if (isTv) {
+                    webView.evaluateJavascript("window.__IS_ANDROID_TV__ = true; document.documentElement.classList.add('is-tv-mode');", null);
+                }
+
                 webView.postDelayed(this::injectSafeInsets, 300);
                 webView.postDelayed(this::injectSafeInsets, 1000);
             }
@@ -268,21 +346,6 @@ public class MainActivity extends BridgeActivity {
             WebView webView = this.getBridge().getWebView();
             if (webView != null && !webView.hasFocus()) {
                 webView.requestFocus();
-            }
-        }
-
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            int keyCode = event.getKeyCode();
-            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                if (this.getBridge() != null) {
-                    WebView webView = this.getBridge().getWebView();
-                    if (webView != null) {
-                        webView.evaluateJavascript(
-                            "(function() { return window.__WATZEM_TV_HANDLE_CENTER__ ? window.__WATZEM_TV_HANDLE_CENTER__() : false; })()",
-                            null
-                        );
-                    }
-                }
             }
         }
 
@@ -368,64 +431,28 @@ public class MainActivity extends BridgeActivity {
         @PluginMethod
         public void getSafeInsets(PluginCall call) {
             MainActivity act = (MainActivity) getActivity();
-            int top = act != null ? act.getSafeTopInsetDp() : 36;
+            int[] insets = act != null ? act.getSafeInsetsDp() : new int[]{36, 0, 0, 0};
             JSObject ret = new JSObject();
-            ret.put("top", top);
+            ret.put("top", insets[0]);
+            ret.put("bottom", insets[1]);
+            ret.put("left", insets[2]);
+            ret.put("right", insets[3]);
+            ret.put("isLandscape", act != null && act.isLandscape());
+            call.resolve(ret);
+        }
+
+        @PluginMethod
+        public void isAndroidTv(PluginCall call) {
+            boolean isTv = getActivity().getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+                || ((UiModeManager) getActivity().getSystemService(UI_MODE_SERVICE)).getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
+            JSObject ret = new JSObject();
+            ret.put("isTv", isTv);
             call.resolve(ret);
         }
     }
 
     @CapacitorPlugin(name = "AdShield")
     public static class AdShieldPlugin extends Plugin {
-        private static final Set<String> ALLOWED_HOSTS = new HashSet<>(Arrays.asList(
-            "localhost",
-            "127.0.0.1",
-            "watzem.online",
-            "vidlink.pro",
-            "vidsrc.in",
-            "vidsrc.pm",
-            "vidsrc.me",
-            "vidsrc.to",
-            "vidsrc.xyz",
-            "vidsrc.net",
-            "vidsrc.cc",
-            "cinesrc.st",
-            "cineflix.st",
-            "a.cineflix.st",
-            "a2.cineflix.st",
-            "web.nxsha.app",
-            "nxsha.app",
-            "videasy.to",
-            "player.videasy.to",
-            "autoembed.co",
-            "player.autoembed.co",
-            "nextgencloudfabric.com",
-            "cloudflare.com",
-            "challenges.cloudflare.com",
-            "turnstile.workers.dev",
-            "cloudflareinsights.com",
-            "cloudflarestorage.com",
-            "moviesapi.vip",
-            "player.moviesapi.vip",
-            "opensubtitles.org",
-            "vsembed.ru",
-            "2embed.cc",
-            "2embed.to",
-            "2embed.org",
-            "vidsrc.io",
-            "multiembed.mov",
-            "multiembed.to",
-            "image.tmdb.org",
-            "api.themoviedb.org",
-            "themoviedb.org",
-            "yts.mx",
-            "youtube.com",
-            "youtube-nocookie.com",
-            "youtu.be",
-            "googlevideo.com",
-            "ytimg.com"
-        ));
-
         @Override
         public Boolean shouldOverrideLoad(Uri url) {
             if (url == null) {
@@ -448,7 +475,7 @@ public class MainActivity extends BridgeActivity {
 
             String host = url.getHost();
 
-            // Allow explicit YouTube watch links to launch the native YouTube app
+            // Allow explicit YouTube watch links to launch native YouTube app if requested
             if (host != null && (host.equals("youtube.com") || host.endsWith(".youtube.com") || host.equals("youtu.be"))) {
                 String path = url.getPath();
                 if (path != null && (path.startsWith("/watch") || (host.equals("youtu.be") && path.length() > 1))) {
@@ -465,16 +492,17 @@ public class MainActivity extends BridgeActivity {
                 return Boolean.FALSE;
             }
 
+            // Top-level navigation must ONLY be permitted for localhost, 127.0.0.1, and watzem.online.
+            // Under NO circumstances allow third-party stream servers (or ad scripts) to navigate
+            // the main app WebView away from the Watzem SPA!
             if (host != null) {
                 host = host.toLowerCase();
-                for (String allowed : ALLOWED_HOSTS) {
-                    if (host.equals(allowed) || host.endsWith("." + allowed)) {
-                        return Boolean.FALSE;
-                    }
+                if (host.equals("localhost") || host.equals("127.0.0.1") || host.endsWith(".watzem.online") || host.equals("watzem.online")) {
+                    return Boolean.FALSE;
                 }
             }
 
-            // Block all other URLs: ad redirects, popunders, market:// links, rogue apps
+            // Block all other URLs: ad redirects, popunders, market:// links, rogue apps, stream embeds attempting top-level navigation
             return Boolean.TRUE;
         }
     }

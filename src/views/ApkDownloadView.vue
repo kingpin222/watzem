@@ -632,4 +632,16 @@ const handleImageError = (e: Event) => {
 .safe-note svg {
   color: #facc15;
 }
+
+@media (orientation: landscape) {
+  .apk-download-page {
+    padding: 0.75rem max(1.25rem, var(--safe-left, 0px));
+    padding-right: max(1.25rem, var(--safe-right, 0px));
+    align-items: flex-start;
+  }
+  .page-content-wrapper {
+    max-width: 580px;
+    margin: 0.5rem auto;
+  }
+}
 </style>

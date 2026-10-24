@@ -13,7 +13,6 @@ import {
 import { useApi } from '../composables/useApi';
 import { useWatchlist } from '../composables/useWatchlist';
 import { useHaptics } from '../composables/useHaptics';
-import { useTvMode } from '../composables/useTvMode';
 import { ApiCache } from '../utils/apiCache';
 import {
   ArrowLeft,
@@ -63,7 +62,6 @@ const {
 } = useApi();
 const { isInWatchlist, toggleWatchlist } = useWatchlist();
 const { triggerMedium, triggerLight } = useHaptics();
-const { isTvMode } = useTvMode();
 
 // TMDB Standard Genre Map for instant frame-0 genre display without waiting for network
 const TMDB_GENRE_MAP: Record<number, string> = {
@@ -322,16 +320,11 @@ const trailerUrl = computed(() =>
 
 const handleWatchClick = () => {
   triggerMedium();
-  isPlayingMedia.value = true;
-  setTimeout(() => {
-    if (streamPlayerRef.value?.startPlaying) {
-      streamPlayerRef.value.startPlaying(isTvMode.value ? true : false);
-    }
-    const playerWrap = document.querySelector('.player-wrapper');
-    if (playerWrap) {
-      playerWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, 50);
+  if (!isPlayingMedia.value) {
+    isPlayingMedia.value = true;
+  } else if (streamPlayerRef.value?.startPlaying) {
+    streamPlayerRef.value.startPlaying(true);
+  }
 };
 
 const handlePlayerClose = () => {
@@ -400,16 +393,11 @@ const playEpisode = (seasonNum: number, episodeNum: number) => {
   activeSeasonNumber.value = seasonNum;
   activeEpisodeNumber.value = episodeNum;
   currentPlayingSeason.value = seasonNum;
-  isPlayingMedia.value = true;
-  setTimeout(() => {
-    if (streamPlayerRef.value?.playEpisode) {
-      streamPlayerRef.value.playEpisode(seasonNum, episodeNum);
-    }
-    const playerWrap = document.querySelector('.player-wrapper');
-    if (playerWrap) {
-      playerWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, 50);
+  if (!isPlayingMedia.value) {
+    isPlayingMedia.value = true;
+  } else if (streamPlayerRef.value?.playEpisode) {
+    streamPlayerRef.value.playEpisode(seasonNum, episodeNum);
+  }
 };
 
 const handlePlayerEpisodeChange = (payload: { season: number; episode: number }) => {
@@ -1151,7 +1139,7 @@ const scrollToTop = () => {
   left: 0;
   right: 0;
   z-index: 60;
-  padding: 0.5rem max(1rem, var(--safe-right, 0px)) 0.5rem max(1rem, var(--safe-left, 0px));
+  padding: max(0.6rem, var(--safe-top, 0px)) max(1rem, var(--safe-right, 0px)) 0.5rem max(1rem, var(--safe-left, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1254,19 +1242,21 @@ const scrollToTop = () => {
   );
 }
 
-/* Banner Info Wrap */
+/* Banner Info Wrap - 100% Fluid */
 .banner-info-wrap {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 3;
-  padding: 1.5rem 1.25rem;
+  padding: 1.5rem max(clamp(1.25rem, 3.5vw, 3.5rem), var(--safe-left, 0px));
+  padding-right: max(clamp(1.25rem, 3.5vw, 3.5rem), var(--safe-right, 0px));
 }
 
 .banner-info-content {
-  max-width: 900px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -1416,11 +1406,13 @@ const scrollToTop = () => {
   color: #fbbf24;
 }
 
-/* Page Body Container */
+/* Page Body Container - 100% Fluid */
 .page-content-container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1.25rem 1.25rem 4rem;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 1.25rem max(clamp(1.25rem, 3.5vw, 3.5rem), var(--safe-left, 0px)) 4rem;
+  padding-right: max(clamp(1.25rem, 3.5vw, 3.5rem), var(--safe-right, 0px));
   display: flex;
   flex-direction: column;
   gap: 1.35rem;
@@ -2207,5 +2199,51 @@ const scrollToTop = () => {
   background: rgba(245, 158, 11, 0.2);
   border-color: rgba(245, 158, 11, 0.6);
   color: #fbbf24;
+}
+
+@media (orientation: landscape) {
+  .page-banner {
+    height: clamp(210px, 58vh, 320px);
+  }
+  .banner-info-wrap {
+    padding: 0.85rem max(1.25rem, var(--safe-left, 0px));
+    padding-right: max(1.25rem, var(--safe-right, 0px));
+  }
+  .page-title {
+    font-size: clamp(1.3rem, 3.2vw, 1.85rem);
+    line-height: 1.15;
+  }
+  .page-tagline {
+    font-size: 0.75rem;
+  }
+  .banner-cta-row {
+    margin-top: 0.35rem;
+    gap: 8px;
+  }
+  .cta-watch-btn {
+    padding: 7px 16px;
+    font-size: 0.82rem;
+  }
+  .cta-sub-btn {
+    padding: 7px 14px;
+    font-size: 0.82rem;
+  }
+  .page-floating-nav {
+    padding: max(0.4rem, var(--safe-top, 0px)) max(1.25rem, var(--safe-right, 0px)) 0.4rem max(1.25rem, var(--safe-left, 0px));
+  }
+  .circle-nav-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .page-content-container {
+    padding: 1rem max(clamp(1.25rem, 3.5vw, 3.5rem), var(--safe-left, 0px)) 3rem;
+    padding-right: max(clamp(1.25rem, 3.5vw, 3.5rem), var(--safe-right, 0px));
+    gap: 1rem;
+  }
+  .episodes-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
+  }
 }
 </style>

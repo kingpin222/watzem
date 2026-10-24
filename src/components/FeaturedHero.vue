@@ -599,22 +599,23 @@ watch(
   right: 1.25rem;
 }
 
-/* Hero Content Area */
+/* Hero Content Area - 100% Fluid */
 .hero-content {
   position: relative;
   z-index: 2;
-  padding: 1.25rem max(1.25rem, var(--safe-left, 0px)) 1.25rem;
-  padding-right: max(1.25rem, var(--safe-right, 0px));
+  width: 100%;
+  max-width: 100%;
+  padding: 1.25rem max(clamp(1.25rem, 3vw, 2.5rem), var(--safe-left, 0px)) 1.25rem;
+  padding-right: max(clamp(1.25rem, 3vw, 2.5rem), var(--safe-right, 0px));
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-width: 960px;
 }
 
 @media (min-width: 768px) and (min-height: 551px) {
   .hero-content {
-    padding: 2.25rem max(2rem, var(--safe-left, 0px)) 1.85rem;
-    padding-right: max(2rem, var(--safe-right, 0px));
+    padding: 2.25rem max(clamp(1.5rem, 3.5vw, 3rem), var(--safe-left, 0px)) 1.85rem;
+    padding-right: max(clamp(1.5rem, 3.5vw, 3rem), var(--safe-right, 0px));
     gap: 0.9rem;
   }
 }
@@ -758,7 +759,7 @@ watch(
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  max-width: 680px;
+  max-width: min(100%, 780px);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
 

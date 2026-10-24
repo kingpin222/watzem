@@ -586,4 +586,26 @@ const handleDismiss = () => {
   color: #9ca3af;
   text-align: right;
 }
+
+@media (orientation: landscape) {
+  .update-modal-backdrop {
+    padding: 0.5rem 1rem;
+  }
+  .update-modal-card {
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 1rem 1.25rem;
+  }
+  .update-icon-wrap {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 0.4rem;
+  }
+  .update-headline {
+    font-size: 1.15rem;
+  }
+  .release-notes-box {
+    max-height: 100px;
+  }
+}
 </style>

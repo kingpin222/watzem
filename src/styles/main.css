@@ -38,9 +38,31 @@
   --header-height: 60px;
 }
 
-html.is-native-app:not(.is-tv-mode),
-:root.is-native-app:not(.is-tv-mode) {
-  --safe-top: max(env(safe-area-inset-top, 0px), 36px);
+@media (orientation: portrait) {
+  :root,
+  html {
+    --safe-left: 0px !important;
+    --safe-right: 0px !important;
+  }
+
+  html.is-native-app:not(.is-tv-mode),
+  :root.is-native-app:not(.is-tv-mode) {
+    --safe-top: max(env(safe-area-inset-top, 0px), 36px);
+    --safe-left: 0px !important;
+    --safe-right: 0px !important;
+  }
+}
+
+@media (orientation: landscape) {
+  :root {
+    --header-height: 48px;
+    --nav-height: 52px;
+  }
+
+  html.is-native-app:not(.is-tv-mode),
+  :root.is-native-app:not(.is-tv-mode) {
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
 }
 
 * {
@@ -205,27 +227,16 @@ button:active {
   border: 1px solid var(--border-subtle);
 }
 
-/* Screen Size Responsive Container Wrapper */
+/* Screen Size Responsive Container Wrapper - 100% Fluid Layout */
 .app-container {
   width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   background-color: var(--bg-main);
-}
-
-@media (min-width: 1441px) {
-  body {
-    background-color: #030305;
-  }
-  .app-container {
-    border-left: 1px solid rgba(255, 255, 255, 0.05);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 0 60px rgba(0, 0, 0, 0.9);
-  }
 }
 
 /* ==========================================================================

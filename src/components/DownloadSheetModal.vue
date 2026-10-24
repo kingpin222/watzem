@@ -654,4 +654,14 @@ const handleDelete = () => {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+@media (orientation: landscape) {
+  .sheet-modal {
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 0.5rem max(1.25rem, var(--safe-left, 0px)) 1.25rem;
+    padding-right: max(1.25rem, var(--safe-right, 0px));
+    gap: 0.65rem;
+  }
+}
 </style>

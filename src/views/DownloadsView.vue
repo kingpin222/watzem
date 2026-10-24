@@ -242,11 +242,22 @@ const handleOpenMagnet = async (d: DownloadedItem) => {
 </template>
 
 <style scoped>
+/* Downloads View - 100% Fluid */
 .downloads-view {
-  padding: 1.25rem 1rem 3rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 1.25rem max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-left, 0px)) 3rem;
+  padding-right: max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .downloads-view {
+    padding: 1.75rem max(clamp(1.5rem, 3vw, 3rem), var(--safe-left, 0px)) 4rem;
+    padding-right: max(clamp(1.5rem, 3vw, 3rem), var(--safe-right, 0px));
+  }
 }
 
 .downloads-header {
@@ -399,11 +410,26 @@ const handleOpenMagnet = async (d: DownloadedItem) => {
   gap: 0.45rem;
 }
 
-/* Downloads List */
+/* Downloads List - Fluid Grid */
 .downloads-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .downloads-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .downloads-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
 }
 
 .download-card {
@@ -635,5 +661,18 @@ const handleOpenMagnet = async (d: DownloadedItem) => {
   background: rgba(225, 29, 72, 0.2);
   border-color: rgba(225, 29, 72, 0.4);
   color: #fff;
+}
+
+@media (orientation: landscape) {
+  .downloads-view {
+    padding: 1rem max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-left, 0px)) 3rem;
+    padding-right: max(clamp(1.25rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
+    gap: 0.85rem;
+  }
+  .downloads-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 0.85rem;
+  }
 }
 </style>

@@ -1,24 +1,6 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-const isTv = process.env.BUILD_TARGET === 'tv' || process.env.CAP_TARGET === 'tv';
-
-const config: CapacitorConfig = isTv ? {
-  appId: 'com.watzem.tv',
-  appName: 'WATZEM TV',
-  webDir: 'dist',
-  android: {
-    path: 'android-tv'
-  },
-  server: {
-    androidScheme: 'https'
-  },
-  plugins: {
-    StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#07070a'
-    }
-  }
-} : {
+const config: CapacitorConfig = {
   appId: 'com.watzem.app',
   appName: 'WATZEM',
   webDir: 'dist',
@@ -37,3 +19,4 @@ const config: CapacitorConfig = isTv ? {
 };
 
 export default config;
+

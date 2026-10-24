@@ -5,7 +5,6 @@ import { useHaptics } from '../composables/useHaptics';
 import { useAppUpdate } from '../composables/useAppUpdate';
 import { Film, Tv, Sparkles, Heart } from 'lucide-vue-next';
 import WatzemLogo from './WatzemLogo.vue';
-import { useMonetization } from '../composables/useMonetization';
 
 const props = defineProps<{
   mode: MediaMode;
@@ -18,8 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const { triggerLight } = useHaptics();
-const { updateAvailable, openModal } = useAppUpdate();
-const { openSupportModal } = useMonetization();
+const { updateAvailable } = useAppUpdate();
 
 const isMovie = computed(() => props.mode === 'movie');
 
@@ -64,25 +62,26 @@ const handleModeChange = (newMode: MediaMode) => {
 
       <!-- Actions Area -->
       <div class="header-actions">
+
         <!-- In-App Version Update Available Button -->
         <button
           v-if="updateAvailable"
-          class="update-badge-btn"
+          class="header-update-btn"
           aria-label="Update Available"
-          title="New version available"
-          @click="openModal"
+          title="New Update Available"
+          @click="emit('navigate', 'update')"
         >
-          <Sparkles :size="13" class="badge-sparkle" />
-          <span class="badge-text">Update</span>
-          <span class="pulsing-dot"></span>
+          <Sparkles :size="14" class="update-sparkle-icon" />
+          <span class="update-text">Update</span>
         </button>
 
         <!-- Support / Tip Jar Button -->
         <button
           class="support-btn"
+          :class="{ active: currentTab === 'tips' }"
           aria-label="Support the app"
           title="Support WATZEM"
-          @click="openSupportModal"
+          @click="emit('navigate', 'tips')"
         >
           <Heart :size="15" :stroke-width="2.2" class="support-heart" />
           <span class="support-text">Tip</span>
@@ -111,10 +110,11 @@ const handleModeChange = (newMode: MediaMode) => {
   align-items: center;
   justify-content: space-between;
   height: var(--header-height);
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 0 max(1rem, var(--safe-left, 0px));
-  padding-right: max(1rem, var(--safe-right, 0px));
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-left, 0px));
+  padding-right: max(clamp(1rem, 2.5vw, 2.5rem), var(--safe-right, 0px));
   gap: 0.75rem;
 }
 
@@ -266,6 +266,43 @@ const handleModeChange = (newMode: MediaMode) => {
   transform: scale(0.96);
 }
 
+.support-btn.active {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: rgba(244, 63, 94, 0.6);
+  color: #fb7185;
+}
+
+.header-update-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.header-update-btn:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.update-sparkle-icon {
+  animation: pulseSparkle 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseSparkle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
 .support-heart {
   display: block;
   color: #f43f5e;
@@ -366,7 +403,7 @@ const handleModeChange = (newMode: MediaMode) => {
     gap: 4px;
   }
 
-  .update-badge-btn {
+  .header-update-btn {
     height: 32px;
     padding: 0 0.55rem;
     font-size: 0.72rem;
@@ -399,14 +436,54 @@ const handleModeChange = (newMode: MediaMode) => {
     justify-content: center;
   }
 
-  .update-badge-btn .badge-text {
+  .header-update-btn .update-text {
     display: none;
   }
 
-  .update-badge-btn {
+  .header-update-btn {
     width: 32px;
     padding: 0;
     justify-content: center;
+  }
+}
+
+@media (orientation: landscape) {
+  .header-content {
+    height: var(--header-height);
+    padding: 0 max(1.25rem, var(--safe-left, 0px));
+    padding-right: max(1.25rem, var(--safe-right, 0px));
+    gap: 0.65rem;
+  }
+
+  .brand-title {
+    font-size: 1.05rem;
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .mode-pill-wrap {
+    flex: 0 1 150px;
+    min-width: 124px;
+  }
+
+  .pill-btn {
+    padding: 0.22rem 0.2rem;
+    font-size: 0.72rem;
+  }
+
+  .support-btn {
+    height: 28px;
+    padding: 0 0.65rem;
+    font-size: 0.72rem;
+  }
+
+  .header-update-btn {
+    height: 28px;
+    padding: 0 0.65rem;
+    font-size: 0.72rem;
   }
 }
 </style>
