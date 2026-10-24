@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![WATZEM Logo](public/icon-192.png)
+<img src="docs/icon-192.png" alt="WATZEM Logo" width="100" style="border-radius: 22px;" />
 
 ### The Ultimate Ad-Free Cinema & TV Series Streaming Experience
 **Universal Multi-Device Application for Android Mobile, Tablets, Foldables, and Android TV / Google TV**
@@ -12,7 +12,7 @@
 [![Tech Stack](https://img.shields.io/badge/Stack-Vue%203%20%7C%20Vite%20%7C%20Capacitor%206-6366f1?style=for-the-badge)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-[**⬇️ Download Latest APK**](https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk) • [**📦 Release Notes**](https://github.com/kingpin222/watzem/releases) • [**✨ Features**](#-key-features) • [**📺 Android TV Guide**](#-android-tv--remote-navigation) • [**📥 Installation**](#-installation)
+[**⬇️ Download Latest APK**](https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk) • [**📦 Release Notes**](https://github.com/kingpin222/watzem/releases) • [**📸 Preview**](#-app-preview) • [**✨ Features**](#-key-features) • [**📺 Android TV Guide**](#-android-tv--remote-navigation) • [**📥 Installation**](#-installation)
 
 </div>
 
@@ -21,6 +21,16 @@
 ## 📖 Overview
 
 **WATZEM** is an independent, high-performance streaming application powered by **The Movie Database (TMDb)** and a decentralized, multi-source streaming engine. Engineered with a **fluid-first, 100% responsive architecture**, WATZEM adapts dynamically to any screen: from compact mobile phones with notch insets, up to massive 4K Smart TVs with full remote D-Pad navigation.
+
+---
+
+## 📸 App Preview
+
+<div align="center">
+
+<img src="docs/watzemload.png" alt="WATZEM App Preview" width="760" style="border-radius: 12px; box-shadow: 0 10px 32px rgba(0,0,0,0.6);" />
+
+</div>
 
 ---
 
