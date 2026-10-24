@@ -12,7 +12,7 @@
 [![Tech Stack](https://img.shields.io/badge/Stack-Vue%203%20%7C%20Vite%20%7C%20Capacitor%206-6366f1?style=for-the-badge)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-[**⬇️ Download Latest APK**](https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk) • [**📦 Release Notes**](https://github.com/kingpin222/watzem/releases) • [**✨ Features**](#-key-features) • [**📺 Android TV Guide**](#-android-tv--remote-navigation) • [**🛠️ Development**](#-development--build)
+[**⬇️ Download Latest APK**](https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk) • [**📦 Release Notes**](https://github.com/kingpin222/watzem/releases) • [**✨ Features**](#-key-features) • [**📺 Android TV Guide**](#-android-tv--remote-navigation) • [**📥 Installation**](#-installation)
 
 </div>
 
@@ -96,77 +96,6 @@ WATZEM features a dedicated spatial navigation engine designed for remote contro
    `https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk`
 3. Once downloaded, select **Install**.
 4. Open **WATZEM** directly from your TV Apps row.
-
----
-
-## 🛠️ Development & Build
-
-### Prerequisites
-* **Node.js** (v18 or higher) & `npm`
-* **Android Studio** & Android SDK (API Level 23 to 34+)
-* **Java Development Kit (JDK 17)**
-
-### 1. Clone & Install Dependencies
-```bash
-git clone https://github.com/kingpin222/watzem.git
-cd watzem
-npm install
-```
-
-### 2. Run Local Development Server
-```bash
-# Runs frontend Vite dev server and backend proxy concurrently
-npm run dev
-
-# Or run frontend only
-npm run dev:client
-```
-
-### 3. Build & Sync with Android
-```bash
-# Build frontend web bundle and sync native Capacitor assets
-npm run build
-npx cap sync android
-```
-
-### 4. Build Universal Release APK
-WATZEM includes an automated build and release script that bumps version codes, compiles the optimized release APK with Proguard/R8 shrinking, and updates manifests:
-```bash
-npm run build:apk
-```
-The compiled APK will be output to:
-```
-android/app/build/outputs/apk/release/app-release.apk
-```
-
-### 5. Launch on Android TV Emulator
-```bash
-npm run tv:run
-```
-
----
-
-## 🧱 Architecture & Tech Stack
-
-```
-watzem/
-├── src/
-│   ├── components/         # Reusable UI components (Player, FeaturedHero, MovieCard, etc.)
-│   ├── views/              # Full page views (Home, Movie, Tv, Explore, Search, Update, Tips)
-│   ├── services/           # Core services (tvSpatialNav, tmdb, scraper, torrent)
-│   ├── composables/        # Vue composables (useInfiniteScroll, useAppUpdate, useHaptics)
-│   ├── styles/             # Global CSS design system, fluid tokens, and tv.css
-│   └── App.vue             # Root application shell & routing
-├── android/                # Native Android & Android TV Capacitor project
-├── update-server/          # Standalone cloaked update server & Cloudflare Worker script
-├── scripts/                # Automated APK build, version bump, and release uploader scripts
-└── package.json            # Project dependencies and script runner
-```
-
-* **Frontend**: [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`), [Vite 6](https://vitejs.dev/), [TypeScript 5](https://www.typescriptlang.org/)
-* **Mobile & TV Bridge**: [Capacitor 6](https://capacitorjs.com/) (`@capacitor/android`, `@capacitor/haptics`, `@capacitor/screen-orientation`, `@capacitor/status-bar`)
-* **Icons**: [Lucide Vue Next](https://lucide.dev/)
-* **Backend Microservice**: Node.js, Express, WebTorrent
 
 ---
 
