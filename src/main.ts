@@ -8,9 +8,13 @@ import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { initAdBlocker } from './utils/adBlocker';
 import { tvSpatialNav } from './services/tvSpatialNav';
+import { initUmamiPixel } from './services/umamiPixel';
 
 // Initialize in-app Ad and Popup Blocker Engine
 initAdBlocker();
+
+// Initialize Umami Cloud Analytics Pixel Tracking (Users & Device Telemetry)
+initUmamiPixel();
 
 // Check if running on Android TV or TV mode
 const isTv = typeof window !== 'undefined' && Boolean(
@@ -137,10 +141,7 @@ async function initCapacitor() {
   setTimeout(syncSafeArea, 800);
 }
 
-import { initTelemetry } from './services/telemetry';
-
 initCapacitor();
-initTelemetry();
 
 const app = createApp(App);
 app.mount('#app');
