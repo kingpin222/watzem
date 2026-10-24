@@ -30,10 +30,9 @@
 * **Movies & TV Shows Switcher**: Instant switching between movies and TV series with real-time category updates.
 * **Featured Hero Banner**: Dynamic spotlight banners with backdrop imagery, IMDb ratings, genre pills, and one-tap quick play.
 * **Explore Directory**:
-  * **Top Streaming Networks**: Netflix, HBO / Max, Disney+, Apple TV+, Prime Video, Paramount+, Peacock, Hulu.
-  * **Genres & Categories**: Action, Sci-Fi, Animation, Horror, Comedy, Crime, Documentary, Romance, and more.
-  * **Iconic Movie Franchises**: Marvel Cinematic Universe, Star Wars, Harry Potter, The Lord of the Rings, John Wick, Fast & Furious, James Bond, and more.
-  * **Major Studios**: Marvel Studios, Pixar, A24, Studio Ghibli, Warner Bros., Lucasfilm, Universal.
+  * **Genres & Categories**: Action, Sci-Fi, Animation, Horror, Comedy, Crime, Documentary, Drama, Thriller, Romance, and more.
+  * **Curated Collections**: Popular sagas, cinematic collections, and thematic showcases.
+  * **Top Charts**: Real-time trending titles, all-time highest rated cinema classics, and latest releases.
 * **Infinite Scroll**: Continuous smooth loading across all catalog and search results with zero viewport jumps.
 * **Instant Search & Trending Suggestions**: Debounced real-time search with trending keyword chips.
 * **Local Watchlist & History**: Offline-first bookmarks and watch history stored persistently with progress tracking.
@@ -175,7 +174,7 @@ watzem/
 
 WATZEM is an open-source, non-commercial application created strictly for educational and personal research purposes. 
 * WATZEM does not host, upload, or store any video files, media streams, or copyright-protected content on its servers.
-* All metadata, movie details, posters, and cast information are retrieved via public APIs provided by [TMDb](https://www.themoviedb.org/).
+* All metadata, titles, descriptions, and release details are retrieved via public APIs provided by [TMDb](https://www.themoviedb.org/).
 * All video stream sources are retrieved dynamically from publicly available, third-party internet scrapers and mirrors.
 * Please ensure you comply with all local laws and copyright regulations in your jurisdiction.
 
