@@ -9,7 +9,6 @@
 
 [![Release](https://img.shields.io/github/v/release/kingpin222/watzem?color=f59e0b&label=Latest%20Version&style=for-the-badge)](https://github.com/kingpin222/watzem/releases/latest)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Android%20TV%20%7C%20Web-10b981?style=for-the-badge)](https://github.com/kingpin222/watzem/releases)
-[![Tech Stack](https://img.shields.io/badge/Stack-Vue%203%20%7C%20Vite%20%7C%20Capacitor%206-6366f1?style=for-the-badge)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 [**⬇️ Download Latest APK**](https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk) • [**📦 Release Notes**](https://github.com/kingpin222/watzem/releases) • [**📸 Preview**](#-app-preview) • [**✨ Features**](#-key-features) • [**📺 Android TV Guide**](#-android-tv--remote-navigation) • [**📥 Installation**](#-installation)
