@@ -36,3 +36,19 @@ export function getUpdateEndpoint(): string {
   const apiBase = getApiBaseUrl();
   return `${apiBase}/app/version`;
 }
+
+/**
+ * Dedicated Anonymous Telemetry Server URL (Cloudflare Worker or standalone edge endpoint)
+ */
+export const TELEMETRY_SERVER_URL = 
+  (import.meta.env.VITE_TELEMETRY_SERVER as string) || 
+  (import.meta.env.VITE_UPDATE_SERVER as string && !import.meta.env.VITE_UPDATE_SERVER.includes('githubusercontent.com') ? import.meta.env.VITE_UPDATE_SERVER as string : '') ||
+  '';
+
+export function getTelemetryEndpoint(): string | null {
+  if (TELEMETRY_SERVER_URL) {
+    const clean = TELEMETRY_SERVER_URL.replace(/\/+$/, '');
+    return `${clean}/api/telemetry/ping`;
+  }
+  return null;
+}

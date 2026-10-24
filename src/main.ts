@@ -137,7 +137,10 @@ async function initCapacitor() {
   setTimeout(syncSafeArea, 800);
 }
 
+import { initTelemetry } from './services/telemetry';
+
 initCapacitor();
+initTelemetry();
 
 const app = createApp(App);
 app.mount('#app');

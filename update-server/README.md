@@ -1,34 +1,53 @@
-# 🛡️ WATZEM Anonymous Update Server (Origin Cloaking)
+# 🛡️ WATZEM Anonymous Update & Analytics Edge Server
 
-This directory contains standalone update server solutions designed to check app versions and deliver APK updates **without exposing your real backend server IP or origin infrastructure**.
+This directory contains standalone update & telemetry edge server solutions designed to check app versions, deliver APK updates, and **track active users & device form-factors (Android TV, Mobile, Tablet, Desktop) anonymously without exposing your real backend server IP or infrastructure**.
 
 ---
 
 ## 🔒 The Architecture
 
 ```
-[ Android App ]
+[ WATZEM App (TV / Phone / Tablet) ]
       │
       ▼ (HTTPS Request to Edge)
 ┌────────────────────────────────────────────────────────┐
-│  CLOUDFLARE EDGE WORKER / CDN (IP Cloaked)            │
-│  - Endpoint: https://update.watzem.com/api/app/version │
-│  - Endpoint: https://update.watzem.com/download/app    │
+│  CLOUDFLARE EDGE WORKER / STANDALONE TUNNEL (Cloaked)  │
+│  - GET  /api/app/version   -> Update manifest (<20ms)  │
+│  - POST /api/telemetry/ping -> Heartbeat telemetry    │
+│  - GET  /stats             -> Live analytics dashboard │
+│  - GET  /download/app      -> 302 Redirect to APK      │
 └────────────────────────────────────────────────────────┘
       │
       ├─► Serves cached version.json (< 15ms latency)
+      ├─► Tracks active users, daily active (DAU), device breakdown
       └─► 302 Redirects APK download to GitHub Release / R2 Bucket
-           (Your real server is NEVER contacted or exposed!)
 ```
 
 ---
 
-## 🚀 Option 1: Cloudflare Worker (Recommended & 100% Free)
+## 📊 Analytics & Telemetry Capabilities
+
+Every WATZEM installation sends a non-invasive, anonymous heartbeat ping (throttled to once every 6 hours):
+
+* **Unique Installs**: Non-reversible UUID generated on first run.
+* **Device Classification**: Automatic classification into **Android TV**, **Mobile**, **Tablet**, or **Desktop**.
+* **Device Models**: E.g. *Chromecast with Google TV*, *Sony Bravia 4K*, *Pixel 8*, *Galaxy S24*.
+* **Active User Metrics**:
+  * **DAU** (Daily Active Users in last 24h)
+  * **WAU** (Weekly Active Users in last 7 days)
+  * **MAU** (Monthly Active Users in last 30 days)
+* **App Version Adoption**: Breakdown of users across app versions (`v1.1.251`, `v1.1.252`, etc.).
+* **Geographic Distribution**: Non-identifying country code from Cloudflare edge headers.
+* **Visual Web Dashboard**: Access live stats at `/stats` or `/dashboard`.
+
+---
+
+## 🚀 Option 1: Cloudflare Worker (Serverless & Free)
 
 - **Pros:** Completely serverless, zero hosting cost, DDoS immune, globally distributed (300+ locations), hides origin IP 100%.
 - **Files:** `cloudflare-worker.js`, `wrangler.toml`
 
-### Quick Deployment Steps:
+### Deployment Steps:
 
 1. **Install Wrangler** (Cloudflare CLI):
    ```bash
@@ -41,15 +60,19 @@ This directory contains standalone update server solutions designed to check app
    npx wrangler login
    ```
 
-3. **Deploy with 1 command**:
+3. **(Optional) Create a KV namespace for telemetry persistence**:
+   ```bash
+   npx wrangler kv:namespace create WATZEM_KV
+   ```
+   Add the returned `id` to `wrangler.toml`.
+
+4. **Deploy with 1 command**:
    ```bash
    npx wrangler deploy
    ```
 
-4. Cloudflare will give you a live URL, e.g.:
+5. Cloudflare will give you a live URL, e.g.:
    `https://watzem-update-server.<your-subdomain>.workers.dev`
-
-5. (Optional) In Cloudflare Dashboard, you can attach your custom domain under **Workers & Pages ➔ Settings ➔ Triggers ➔ Custom Domains** (e.g. `update.watzem.com`).
 
 6. In your root `.env` or build configuration, set:
    ```env
@@ -58,38 +81,25 @@ This directory contains standalone update server solutions designed to check app
 
 ---
 
-## 📦 Option 2: GitHub Releases + Raw CDN (Zero-Maintenance)
+## 🚇 Option 2: Standalone Microservice with Cloudflare Tunnel
 
-You can host your updates completely through GitHub Releases without running any servers at all:
+If you prefer self-hosting the Node.js microservice (`standalone-server.mjs`) on a VPS or local server with local file-backed persistence:
 
-1. Repository: `kingpin222/watzem`
-2. Push your `version.json` file to the root of the repository.
-3. When releasing a new version, create a GitHub Release with tag `v1.1.89` and attach `app-release.apk`.
-4. Your update URL in the app will be:
-   ```env
-   VITE_UPDATE_SERVER=https://raw.githubusercontent.com/kingpin222/watzem/main/version.json
-   ```
-5. In `version.json`, set:
-   ```json
-   "downloadUrl": "https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk"
-   ```
-
----
-
-## 🚇 Option 3: Standalone Microservice with Cloudflare Tunnel
-
-If you prefer self-hosting the Node.js microservice (`standalone-server.mjs`) on a VPS or home server, use **Cloudflare Tunnel (`cloudflared`)** so no inbound ports are opened and your real IP is never exposed to DNS or scanners:
-
-1. Start the microservice:
+1. **Start the microservice**:
    ```bash
    cd update-server
    npm install
    node standalone-server.mjs
    ```
 
-2. Expose it securely via Cloudflare Tunnel:
+2. **Expose it securely via Cloudflare Tunnel**:
    ```bash
    cloudflared tunnel --url http://localhost:3131
    ```
 
-3. Cloudflare Tunnel generates an encrypted edge tunnel URL (e.g. `https://xyz-random.trycloudflare.com` or maps to your proxied domain). Outbound traffic is proxied through Cloudflare; your origin IP remains completely hidden.
+3. **Endpoints Available**:
+   * Version check: `http://localhost:3131/api/app/version`
+   * Telemetry Ping: `http://localhost:3131/api/telemetry/ping`
+   * **Live Visual Dashboard**: `http://localhost:3131/stats`
+   * JSON Telemetry API: `http://localhost:3131/api/telemetry/stats`
+   * APK Download: `http://localhost:3131/download/app`
