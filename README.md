@@ -9,6 +9,7 @@
 
 [![Release](https://img.shields.io/github/v/release/kingpin222/watzem?color=f59e0b&label=Latest%20Version&style=for-the-badge)](https://github.com/kingpin222/watzem/releases/latest)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Android%20TV%20%7C%20Web-10b981?style=for-the-badge)](https://github.com/kingpin222/watzem/releases)
+[![Tech Stack](https://img.shields.io/badge/Stack-Vue%203%20%7C%20Vite%20%7C%20Capacitor%206-6366f1?style=for-the-badge)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 [**⬇️ Download Latest APK**](https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk) • [**📦 Release Notes**](https://github.com/kingpin222/watzem/releases) • [**📸 Preview**](#-app-preview) • [**✨ Features**](#-key-features) • [**📺 Android TV Guide**](#-android-tv--remote-navigation) • [**📥 Installation**](#-installation)
@@ -111,7 +112,7 @@ WATZEM features a dedicated spatial navigation engine designed for remote contro
 
 WATZEM is an open-source, non-commercial application created strictly for educational and personal research purposes. 
 * WATZEM does not host, upload, or store any video files, media streams, or copyright-protected content on its servers.
-* All metadata, titles, descriptions, and release details are retrieved via public APIs.
+* All metadata, titles, descriptions, and release details are retrieved via public APIs provided by [TMDb](https://www.themoviedb.org/).
 * All video stream sources are retrieved dynamically from publicly available, third-party internet scrapers and mirrors.
 * Please ensure you comply with all local laws and copyright regulations in your jurisdiction.
 
