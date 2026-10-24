@@ -46,7 +46,7 @@
 
 ### 📺 Android TV & 10-Foot Experience
 * **Native TV Leanback Launcher**: Recognizable Android TV banner and home screen launcher intent.
-* **Spatial Navigation Engine (`tvSpatialNav`)**:
+* **Spatial Navigation Engine**:
   * Comprehensive directional D-Pad movement across cards, buttons, drawers, and modal sheets.
   * Active focus highlighting with glowing TV accent borders.
   * Viewport-aware scroll centering (maintains focused items in optimal viewing zones).
@@ -54,17 +54,16 @@
 * **Dedicated TV Sidebar**: Collapsible, fast-access navigation bar for Search, Movies, TV, Explore, Watchlist, and Settings.
 
 ### 📱 Responsive Mobile & Tablet Layout
-* **Fluid Layout System**: Fluid typography, CSS clamp scaling, and automatic column reflow for any aspect ratio.
+* **Fluid Layout System**: Fluid typography, clamp scaling, and automatic column reflow for any aspect ratio.
 * **Safe Area Insets**: Native support for edge-to-edge layouts, status bar translucency, navigation bar styling, and display cutouts.
 * **Tactile Haptic Feedback**: Subtle vibration cues on taps, card selects, and actions on supported Android devices.
 
 ### 🔄 Over-The-Air (OTA) Updates & In-App Upgrader
 * **Built-in In-App Updates**: Dedicated `UpdateView` with direct in-place APK download, real-time byte progress, and one-tap installation.
-* **Anonymous Edge Update Architecture**: Cloaked update infrastructure via Cloudflare Worker or GitHub Releases with zero origin server exposure.
+
 
 ### 🤝 Free Community Support & Deep Links
 * **Direct App Sharing**: Share movie titles or app download links via WhatsApp, Telegram, X, Facebook, or direct clipboard copy.
-* **Community Tips & Monetization**: Decentralized crypto tip addresses with high-resolution QR codes (BTC, ETH, SOL, USDT) and Buy Me a Coffee integration.
 
 ---
 
