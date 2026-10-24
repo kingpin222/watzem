@@ -7,8 +7,8 @@ android {
         applicationId "com.watzem.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 196
-        versionName "1.1.194"
+        versionCode 199
+        versionName "1.1.197"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
