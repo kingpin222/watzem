@@ -658,21 +658,28 @@ class TvSpatialNavManager {
     }
 
     if (!this.currentFocused || !document.body.contains(this.currentFocused) || !this.isElementVisible(this.currentFocused)) {
-      // 1. Try restoring focus by last card ID if available
+      const vh = window.innerHeight || 1080;
+      // 1. Try restoring focus by last card ID if available and near viewport
       if (this.lastFocusedCardId) {
         const matchingCard = document.querySelector<HTMLElement>(`[data-card-id="${this.lastFocusedCardId}"]`);
         if (matchingCard && this.isElementVisible(matchingCard)) {
-          this.focusElement(matchingCard);
-          return;
+          const r = matchingCard.getBoundingClientRect();
+          if (r.bottom >= -150 && r.top <= vh + 150) {
+            this.focusElement(matchingCard);
+            return;
+          }
         }
       }
 
-      // 2. Try restoring focus to .load-more-btn if that was last focused
+      // 2. Try restoring focus to .load-more-btn if that was last focused and near viewport
       if (this.lastFocusedClass?.includes('load-more-btn')) {
         const loadBtn = document.querySelector<HTMLElement>('.load-more-btn');
         if (loadBtn && this.isElementVisible(loadBtn)) {
-          this.focusElement(loadBtn);
-          return;
+          const r = loadBtn.getBoundingClientRect();
+          if (r.bottom >= -150 && r.top <= vh + 150) {
+            this.focusElement(loadBtn);
+            return;
+          }
         }
       }
 

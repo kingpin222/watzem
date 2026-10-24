@@ -258,24 +258,19 @@ const loadMoreSearch = async () => {
 
   const activeEl = document.activeElement as HTMLElement | null;
   const wasLoadMore = activeEl?.classList.contains('load-more-btn');
-  const focusedCardId = activeEl?.getAttribute('data-card-id');
   const prevCount = searchResults.value.length;
 
   await performSearch(searchQuery.value, searchPage.value + 1);
   await nextTick();
 
-  if (wasLoadMore) {
+  const isDpadActive = document.documentElement.classList.contains('is-dpad-active') || document.documentElement.classList.contains('is-tv-mode');
+  if (wasLoadMore && isDpadActive) {
     const allCards = document.querySelectorAll<HTMLElement>('.movies-grid .movie-card');
     if (allCards.length > prevCount && allCards[prevCount]) {
       tvSpatialNav.focusElement(allCards[prevCount]);
     } else {
       const loadBtn = document.querySelector<HTMLElement>('.load-more-btn');
       if (loadBtn) tvSpatialNav.focusElement(loadBtn);
-    }
-  } else if (focusedCardId) {
-    const targetCard = document.querySelector<HTMLElement>(`[data-card-id="${focusedCardId}"]`);
-    if (targetCard) {
-      tvSpatialNav.focusElement(targetCard);
     }
   }
 };

@@ -9,12 +9,16 @@ import {
   ArrowLeft,
   Sparkles,
   QrCode,
-  ShieldCheck
+  ShieldCheck,
+  Share2,
+  Send,
+  MessageCircle
 } from 'lucide-vue-next';
 import QRCode from 'qrcode';
-import { useMonetization } from '../composables/useMonetization';
+import { useMonetization, openExternalUrl } from '../composables/useMonetization';
 import { CryptoWallet } from '../config/monetization';
 import { useHaptics } from '../composables/useHaptics';
+import { useDeepLinks, APP_DOWNLOAD_URL } from '../composables/useDeepLinks';
 
 const emit = defineEmits<{
   (e: 'back'): void;
@@ -22,6 +26,42 @@ const emit = defineEmits<{
 
 const { copyAddress, openCoffeeLink, config } = useMonetization();
 const { triggerLight } = useHaptics();
+const { shareApp, copyAppLink } = useDeepLinks();
+
+const isCopiedAppLink = ref(false);
+
+const handleShareApp = async () => {
+  triggerLight();
+  await shareApp();
+};
+
+const handleCopyAppLink = async () => {
+  triggerLight();
+  const ok = await copyAppLink();
+  if (ok) {
+    isCopiedAppLink.value = true;
+    setTimeout(() => {
+      isCopiedAppLink.value = false;
+    }, 3000);
+  }
+};
+
+const shareToSocial = (platform: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') => {
+  triggerLight();
+  const text = 'Watch thousands of free movies and TV series in HD with zero popup ads on WATZEM!';
+  const url = APP_DOWNLOAD_URL;
+  let target = '';
+  if (platform === 'whatsapp') {
+    target = `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + url)}`;
+  } else if (platform === 'telegram') {
+    target = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+  } else if (platform === 'twitter') {
+    target = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  } else if (platform === 'facebook') {
+    target = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+  }
+  openExternalUrl(target);
+};
 
 const copiedId = ref<string | null>(null);
 const selectedWalletId = ref<string>(config.cryptoWallets[0]?.id || 'btc');
@@ -115,6 +155,72 @@ onMounted(() => {
 
       <!-- Grid of Support Channels -->
       <div class="support-grid">
+        <!-- App Share Card (Free Community Support) -->
+        <section class="support-card share-card">
+          <div class="card-glow-edge share-glow-edge"></div>
+          <div class="card-header">
+            <div class="card-icon-wrap share-icon-wrap">
+              <Share2 :size="24" />
+            </div>
+            <div>
+              <div class="card-title-row">
+                <h2 class="card-title">Share with Friends</h2>
+                <span class="badge-free">100% Free</span>
+              </div>
+              <p class="card-subtitle">The easiest and most impactful way to support</p>
+            </div>
+          </div>
+
+          <p class="card-body-text">
+            Love WATZEM? Spread the word to your friends, family, and movie groups! Every new user helps keep our ad-free streaming servers active and accessible.
+          </p>
+
+          <div class="share-actions-row">
+            <button 
+              class="action-btn share-primary-btn"
+              data-nav-item="true"
+              tabindex="0"
+              @click="handleShareApp"
+            >
+              <Share2 :size="18" />
+              <span>Share WATZEM App</span>
+            </button>
+
+            <button 
+              class="action-btn share-copy-btn"
+              :class="{ copied: isCopiedAppLink }"
+              data-nav-item="true"
+              tabindex="0"
+              @click="handleCopyAppLink"
+            >
+              <Check v-if="isCopiedAppLink" :size="18" />
+              <Copy v-else :size="18" />
+              <span>{{ isCopiedAppLink ? 'Link Copied!' : 'Copy Link' }}</span>
+            </button>
+          </div>
+
+          <!-- Social Quick Share Shortcuts -->
+          <div class="social-share-chips">
+            <span class="social-chips-label">Quick Share:</span>
+            <div class="chips-row">
+              <button class="social-chip-btn whatsapp" title="Share via WhatsApp" @click="shareToSocial('whatsapp')">
+                <MessageCircle :size="13" />
+                <span>WhatsApp</span>
+              </button>
+              <button class="social-chip-btn telegram" title="Share via Telegram" @click="shareToSocial('telegram')">
+                <Send :size="13" />
+                <span>Telegram</span>
+              </button>
+              <button class="social-chip-btn twitter" title="Share on X" @click="shareToSocial('twitter')">
+                <span>X</span>
+              </button>
+              <button class="social-chip-btn facebook" title="Share on Facebook" @click="shareToSocial('facebook')">
+                <span>Facebook</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         <!-- Direct Coffee Support Option -->
         <section class="support-card coffee-card" v-if="config.coffee.enabled">
           <div class="card-glow-edge"></div>
@@ -415,6 +521,154 @@ onMounted(() => {
   background: rgba(245, 158, 11, 0.16);
   border: 1px solid rgba(245, 158, 11, 0.35);
   color: #f59e0b;
+}
+
+.share-icon-wrap {
+  background: rgba(168, 85, 247, 0.16);
+  border: 1px solid rgba(168, 85, 247, 0.38);
+  color: #c084fc;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
+}
+
+.share-card {
+  border-color: rgba(168, 85, 247, 0.25);
+}
+
+.share-glow-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.8), transparent);
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.badge-free {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.16);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #34d399;
+}
+
+.share-actions-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  margin-top: auto;
+}
+
+@media (min-width: 480px) {
+  .share-actions-row {
+    grid-template-columns: 1.4fr 1fr;
+  }
+}
+
+.share-primary-btn {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(168, 85, 247, 0.35);
+}
+
+.share-primary-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(168, 85, 247, 0.5);
+}
+
+.share-copy-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.share-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.share-copy-btn.copied {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #34d399;
+}
+
+/* Social Quick Share Chips */
+.social-share-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.social-chips-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.chips-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.social-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.social-chip-btn:hover {
+  transform: translateY(-1px);
+  color: #ffffff;
+}
+
+.social-chip-btn.whatsapp:hover {
+  background: rgba(37, 211, 102, 0.18);
+  border-color: rgba(37, 211, 102, 0.45);
+  color: #4ade80;
+}
+
+.social-chip-btn.telegram:hover {
+  background: rgba(0, 136, 204, 0.18);
+  border-color: rgba(0, 136, 204, 0.45);
+  color: #38bdf8;
+}
+
+.social-chip-btn.twitter:hover {
+  background: rgba(29, 155, 240, 0.18);
+  border-color: rgba(29, 155, 240, 0.45);
+  color: #60a5fa;
+}
+
+.social-chip-btn.facebook:hover {
+  background: rgba(24, 119, 242, 0.18);
+  border-color: rgba(24, 119, 242, 0.45);
+  color: #818cf8;
 }
 
 .crypto-icon-wrap {

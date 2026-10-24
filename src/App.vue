@@ -24,6 +24,7 @@ import { useMonetization } from './composables/useMonetization';
 import { tvSpatialNav } from './services/tvSpatialNav';
 import { watch } from 'vue';
 import TvSidebar from './components/tv/TvSidebar.vue';
+import { useDeepLinks, parseDeepLink } from './composables/useDeepLinks';
 
 // App global state
 const showSplash = ref(true);
@@ -33,6 +34,7 @@ const previousTab = ref<TabKey>('home');
 const selectedItem = ref<MediaItem | null>(null);
 const initialPlayState = ref(false);
 const { checkForUpdate, updateInfo, showUpdateModal } = useAppUpdate();
+const { initDeepLinks } = useDeepLinks();
 const { activeHeroBackdrop, isHeroActive } = useHeroBackground();
 const { isTvMode } = useTvMode();
 
@@ -87,7 +89,11 @@ if (pathname === '/download') {
   currentTab.value = 'tips';
   showSplash.value = false;
 }
-// 2. If Android user detected on the web (and NOT already using the native APK): STRICT LOCK
+// 2. Direct movie or TV deeplink route
+else if (typeof window !== 'undefined' && parseDeepLink(window.location.href)) {
+  showSplash.value = false;
+}
+// 3. If Android user detected on the web (and NOT already using the native APK): STRICT LOCK
 else if (isAndroidWeb) {
   currentTab.value = 'download';
   showSplash.value = false;
@@ -339,6 +345,12 @@ onMounted(() => {
       window.screen.orientation.addEventListener('change', screenOrientationListener);
     }
   }
+
+  // Register Deeplink listener for incoming movie & TV links (Cold start + runtime)
+  initDeepLinks((item: MediaItem) => {
+    openDetail(item, false);
+    showSplash.value = false;
+  });
 
   // Check for in-app version update if running on native platform or test query
   try {

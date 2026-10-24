@@ -28,10 +28,12 @@ import {
   Info,
   BookOpen,
   ArrowUp,
-  Search
+  Search,
+  Share2
 } from 'lucide-vue-next';
 import StreamPlayer from '../components/StreamPlayer.vue';
 import { tvSpatialNav } from '../services/tvSpatialNav';
+import { useDeepLinks } from '../composables/useDeepLinks';
 
 const props = withDefaults(
   defineProps<{
@@ -62,6 +64,14 @@ const {
 } = useApi();
 const { isInWatchlist, toggleWatchlist } = useWatchlist();
 const { triggerMedium, triggerLight } = useHaptics();
+const { shareMedia } = useDeepLinks();
+
+const handleShareMedia = async () => {
+  if (props.item) {
+    triggerLight();
+    await shareMedia(props.item, itemMode.value);
+  }
+};
 
 // TMDB Standard Genre Map for instant frame-0 genre display without waiting for network
 const TMDB_GENRE_MAP: Record<number, string> = {
@@ -679,6 +689,14 @@ const scrollToTop = () => {
       </button>
       <div class="nav-actions">
         <button
+          class="circle-nav-btn share-btn"
+          title="Share Movie Link"
+          aria-label="Share"
+          @click="handleShareMedia"
+        >
+          <Share2 :size="17" />
+        </button>
+        <button
           class="circle-nav-btn bookmark-btn"
           :class="{ saved: isSaved, 'animate-pop-bounce': isPoppingBookmark }"
           :title="isSaved ? 'Remove from Watchlist' : 'Add to Watchlist'"
@@ -742,6 +760,10 @@ const scrollToTop = () => {
             >
               <Bookmark :size="15" :fill="isSaved ? 'currentColor' : 'none'" />
               <span>{{ isSaved ? 'Saved' : 'Watchlist' }}</span>
+            </button>
+            <button class="cta-share-btn" title="Share" @click="handleShareMedia">
+              <Share2 :size="14" />
+              <span>Share</span>
             </button>
             <button v-if="trailerKey" class="cta-trailer-btn" @click="openTrailer">
               <Clapperboard :size="15" />
@@ -1404,6 +1426,36 @@ const scrollToTop = () => {
   background: rgba(245, 158, 11, 0.2);
   border-color: rgba(245, 158, 11, 0.5);
   color: #fbbf24;
+}
+
+.cta-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: rgba(24, 24, 34, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cta-share-btn:hover {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.45);
+    color: #c084fc;
+    transform: translateY(-1px);
+  }
+}
+
+.circle-nav-btn.share-btn:hover {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #c084fc;
 }
 
 /* Page Body Container - 100% Fluid */
