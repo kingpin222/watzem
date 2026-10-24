@@ -92,8 +92,8 @@ export async function uploadRelease() {
     run('git checkout release');
     run('git fetch origin main');
     run('git reset --hard origin/main');
-    run('git checkout source -- version.json');
-    run('git add version.json');
+    run('git checkout source -- version.json README.md');
+    run('git add version.json README.md');
     try {
       run(`git commit -m "chore: release manifest ${tag} (code: ${versionData.versionCode})"`);
     } catch (_) {
