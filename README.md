@@ -111,7 +111,7 @@ WATZEM features a dedicated spatial navigation engine designed for remote contro
 
 WATZEM is an open-source, non-commercial application created strictly for educational and personal research purposes. 
 * WATZEM does not host, upload, or store any video files, media streams, or copyright-protected content on its servers.
-* All metadata, titles, descriptions, and release details are retrieved via public APIs provided by [TMDb](https://www.themoviedb.org/).
+* All metadata, titles, descriptions, and release details are retrieved via public APIs.
 * All video stream sources are retrieved dynamically from publicly available, third-party internet scrapers and mirrors.
 * Please ensure you comply with all local laws and copyright regulations in your jurisdiction.
 
