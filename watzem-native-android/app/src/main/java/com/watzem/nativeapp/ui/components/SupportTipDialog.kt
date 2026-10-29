@@ -28,8 +28,10 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SystemUpdate
+import com.watzem.nativeapp.data.deeplink.DeepLinkHandler
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -479,6 +481,50 @@ fun SupportTipDialog(
                             }
                             Icon(
                                 imageVector = Icons.Default.OpenInNew,
+                                contentDescription = null,
+                                tint = TextMuted,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+
+                        // Share WATZEM App
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .tvFocusable(
+                                    shape = RoundedCornerShape(8.dp),
+                                    focusedScale = 1.03f,
+                                    focusedBorderColor = AccentAmber,
+                                    borderWidth = 1.5.dp,
+                                    onClick = { DeepLinkHandler.shareApp(context) }
+                                )
+                                .clickable { DeepLinkHandler.shareApp(context) }
+                                .padding(vertical = 4.dp, horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                tint = AccentAmber,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Share WATZEM App",
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
+                                )
+                                Text(
+                                    text = "Share download link & deep links with friends",
+                                    color = TextMuted,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.Share,
                                 contentDescription = null,
                                 tint = TextMuted,
                                 modifier = Modifier.size(13.dp)

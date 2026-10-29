@@ -155,7 +155,7 @@ export function useDeepLinks() {
 
     // 2. Fallback: Copy link to clipboard
     try {
-      const copyText = options.url || `${options.text} ${options.url}`;
+      const copyText = options.text ? `${options.text}\n${options.url}`.trim() : options.url;
       await Clipboard.write({ string: copyText });
       triggerSuccess();
       showToast({
@@ -167,7 +167,7 @@ export function useDeepLinks() {
       return true;
     } catch (err) {
       if (navigator?.clipboard?.writeText) {
-        const copyText = options.url || `${options.text} ${options.url}`;
+        const copyText = options.text ? `${options.text}\n${options.url}`.trim() : options.url;
         await navigator.clipboard.writeText(copyText);
         triggerSuccess();
         showToast({
@@ -249,11 +249,11 @@ export function useDeepLinks() {
     const title = item.title || item.name || 'Title';
     const year = (item.release_date || item.first_air_date || '').slice(0, 4);
     const yearStr = year ? ` (${year})` : '';
-    const { appSchemeUrl } = getMediaLinks(item, mode);
+    const { appSchemeUrl, webUrl } = getMediaLinks(item, mode);
 
     return shareContent({
       title: `${title}${yearStr} on WATZEM`,
-      text: `Watch "${title}"${yearStr} on WATZEM for free with zero ads!\nOpen in App: ${appSchemeUrl}\nGet App:`,
+      text: `🎬 Watch "${title}"${yearStr} on WATZEM — 100% Free with zero ads!\n\n📱 Open in App: ${appSchemeUrl}\n🌐 Web Link: ${webUrl}\n⬇️ Download App:`,
       url: APP_DOWNLOAD_URL,
       dialogTitle: `Share "${title}"`,
       copySuccessMessage: `"${title}" deeplink (${appSchemeUrl}) copied to clipboard!`

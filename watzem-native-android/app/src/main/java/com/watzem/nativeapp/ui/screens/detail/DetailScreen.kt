@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.watzem.nativeapp.data.deeplink.DeepLinkHandler
 import com.watzem.nativeapp.data.model.MediaItem
 import com.watzem.nativeapp.data.model.TVEpisode
 import com.watzem.nativeapp.data.model.VideoItem
@@ -427,13 +428,13 @@ fun DetailScreen(
                                     // Share Button
                                     OutlinedButton(
                                         onClick = {
-                                            val sendIntent = Intent().apply {
-                                                action = Intent.ACTION_SEND
-                                                putExtra(Intent.EXTRA_TEXT, "Watch ${details.displayTitle} on WATZEM!")
-                                                type = "text/plain"
-                                            }
-                                            val shareIntent = Intent.createChooser(sendIntent, "Share ${details.displayTitle}")
-                                            context.startActivity(shareIntent)
+                                            DeepLinkHandler.shareMedia(
+                                                context = context,
+                                                title = details.displayTitle,
+                                                mediaId = details.id,
+                                                isTv = details.isTv,
+                                                releaseYear = details.releaseYear
+                                            )
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier.tvFocusable(
@@ -692,13 +693,13 @@ fun DetailScreen(
                             // Share Button
                             OutlinedButton(
                                 onClick = {
-                                    val sendIntent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        putExtra(Intent.EXTRA_TEXT, "Watch ${details.displayTitle} on WATZEM!")
-                                        type = "text/plain"
-                                    }
-                                    val shareIntent = Intent.createChooser(sendIntent, "Share ${details.displayTitle}")
-                                    context.startActivity(shareIntent)
+                                    DeepLinkHandler.shareMedia(
+                                        context = context,
+                                        title = details.displayTitle,
+                                        mediaId = details.id,
+                                        isTv = details.isTv,
+                                        releaseYear = details.releaseYear
+                                    )
                                 },
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.tvFocusable(

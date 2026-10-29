@@ -208,6 +208,9 @@ data class MediaDetails(
 
     val safeCreatedBy: List<Creator>
         get() = createdBy ?: emptyList()
+    val isTv: Boolean
+        get() = numberOfSeasons != null || safeSeasons.isNotEmpty()
+
     val displayTitle: String
         get() = _title ?: _name ?: "Untitled"
 

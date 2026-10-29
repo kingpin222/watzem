@@ -37,6 +37,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import android.content.Intent
+import com.watzem.nativeapp.data.deeplink.DeepLinkHandler
+import com.watzem.nativeapp.data.deeplink.DeepLinkTarget
 import com.watzem.nativeapp.data.local.WatchlistManager
 import com.watzem.nativeapp.data.repository.MovieRepository
 import com.watzem.nativeapp.data.update.AppUpdateManager
@@ -53,9 +56,11 @@ import com.watzem.nativeapp.ui.theme.WatzemTheme
 class MainActivity : ComponentActivity() {
 
     private var isPlayerScreenActive: Boolean = false
+    private val pendingDeepLink = mutableStateOf<DeepLinkTarget?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
 
         // Prevent the app and screen from sleeping / timing out while in use
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -91,6 +96,22 @@ class MainActivity : ComponentActivity() {
         setContent {
             WatzemTheme {
                 MainAppContent()
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        val data = intent?.data
+        if (data != null) {
+            val target = DeepLinkHandler.parse(data)
+            if (target != null) {
+                pendingDeepLink.value = target
             }
         }
     }
@@ -155,6 +176,17 @@ class MainActivity : ComponentActivity() {
 
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
+
+        // Handle incoming deep link targets (custom scheme watzem:// or web watzem.app)
+        val deepLinkTarget by remember { pendingDeepLink }
+        LaunchedEffect(deepLinkTarget) {
+            deepLinkTarget?.let { target ->
+                navController.navigate(Screen.Detail.createRoute(target.mediaId, target.isTv)) {
+                    launchSingleTop = true
+                }
+                pendingDeepLink.value = null
+            }
+        }
 
         // Auto-check for update on startup (like old watzem)
         LaunchedEffect(Unit) {
