@@ -18,20 +18,28 @@ if (!fs.existsSync(versionJsonPath)) {
 
 const versionData = JSON.parse(fs.readFileSync(versionJsonPath, 'utf-8'));
 
-// 2. Increment versionCode and version
-const oldCode = Number(versionData.versionCode) || 1;
-const newCode = oldCode + 1;
+// 2. Increment or set versionCode and version
+const targetVersion = process.argv[2];
+const targetCode = process.argv[3] ? Number(process.argv[3]) : null;
 
-const currentVersion = String(versionData.version || '1.0.0');
-const parts = currentVersion.split('.').map(Number);
-if (parts.length >= 3) {
-  parts[2] = (parts[2] || 0) + 1;
-} else if (parts.length === 2) {
-  parts.push(1);
+const oldCode = Number(versionData.versionCode) || 1;
+const newCode = targetCode || (oldCode + 1);
+
+let newVersion;
+if (targetVersion) {
+  newVersion = targetVersion.replace(/^v/, '');
 } else {
-  parts.push(0, 1);
+  const currentVersion = String(versionData.version || '1.0.0');
+  const parts = currentVersion.split('.').map(Number);
+  if (parts.length >= 3) {
+    parts[2] = (parts[2] || 0) + 1;
+  } else if (parts.length === 2) {
+    parts.push(1);
+  } else {
+    parts.push(0, 1);
+  }
+  newVersion = parts.join('.');
 }
-const newVersion = parts.join('.');
 
 const today = new Date().toISOString().split('T')[0];
 
