@@ -11,6 +11,11 @@ const packageJsonPath = path.join(projectRoot, 'package.json');
 const nativeGradlePath = path.join(projectRoot, 'watzem-native-android/app/build.gradle.kts');
 
 // 1. Read version.json
+if (process.env.NO_BUMP === '1') {
+  console.log('⏭️ Skipping version bump (NO_BUMP=1)');
+  process.exit(0);
+}
+
 if (!fs.existsSync(versionJsonPath)) {
   console.error('❌ version.json not found at:', versionJsonPath);
   process.exit(1);

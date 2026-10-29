@@ -79,6 +79,9 @@ export async function uploadRelease() {
     } catch (_) {
       // Nothing new to commit on source
     }
+    try {
+      run('git push origin source');
+    } catch (_) {}
 
     // Stash any uncommitted files on source so branch checkout is clean
     const dirty = execSync('git status --porcelain', { cwd: projectRoot }).toString().trim();

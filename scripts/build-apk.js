@@ -8,6 +8,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
+if (process.argv.includes('--no-bump')) {
+  process.env.NO_BUMP = '1';
+}
+
 function run(command, cwd = projectRoot) {
   console.log(`\n▶️ Executing: ${command}`);
   execSync(command, { cwd, stdio: 'inherit' });
