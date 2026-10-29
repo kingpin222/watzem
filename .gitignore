@@ -27,15 +27,6 @@ android/app/src/main/assets/public/*.apk
 .AppleDouble
 .LSOverride
 
-# Android builds & secrets
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/.idea/
-android/*.iml
-android/app/*.iml
-
 # Native Android builds & secrets
 watzem-native-android/.gradle/
 watzem-native-android/build/
@@ -49,8 +40,6 @@ watzem-native-android/*.iml
 watzem-native-android/app/*.iml
 
 # CRITICAL: Keep signing keystore private
-android/app/*.jks
-android/app/*.keystore
 watzem-native-android/app/*.jks
 watzem-native-android/app/*.keystore
 

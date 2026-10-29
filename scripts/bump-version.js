@@ -8,7 +8,7 @@ const projectRoot = path.resolve(__dirname, '..');
 
 const versionJsonPath = path.join(projectRoot, 'version.json');
 const packageJsonPath = path.join(projectRoot, 'package.json');
-const gradlePath = path.join(projectRoot, 'android/app/build.gradle');
+const nativeGradlePath = path.join(projectRoot, 'watzem-native-android/app/build.gradle.kts');
 
 // 1. Read version.json
 if (!fs.existsSync(versionJsonPath)) {
@@ -69,22 +69,13 @@ if (fs.existsSync(packageJsonPath)) {
   console.log(`📄 [Auto-Bump] package.json version updated to: ${newVersion}`);
 }
 
-// 6. Update android build files (Native Kotlin & legacy Capacitor)
-const nativeGradlePath = path.join(projectRoot, 'watzem-native-android/app/build.gradle.kts');
+// 6. Update Native Android build file
 if (fs.existsSync(nativeGradlePath)) {
   let nativeGradle = fs.readFileSync(nativeGradlePath, 'utf-8');
   nativeGradle = nativeGradle.replace(/versionCode\s*=\s*\d+/, `versionCode = ${newCode}`);
   nativeGradle = nativeGradle.replace(/versionName\s*=\s*"[^"]+"/, `versionName = "${newVersion}"`);
   fs.writeFileSync(nativeGradlePath, nativeGradle);
   console.log(`🤖 [Auto-Bump] ${path.relative(projectRoot, nativeGradlePath)} updated: versionCode = ${newCode}, versionName = "${newVersion}"`);
-}
-
-if (fs.existsSync(gradlePath)) {
-  let gradle = fs.readFileSync(gradlePath, 'utf-8');
-  gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${newCode}`);
-  gradle = gradle.replace(/versionName\s+"[^"]+"/, `versionName "${newVersion}"`);
-  fs.writeFileSync(gradlePath, gradle);
-  console.log(`🤖 [Auto-Bump] ${path.relative(projectRoot, gradlePath)} updated: versionCode ${newCode}, versionName "${newVersion}"`);
 }
 
 console.log(`✅ [Auto-Bump] Successfully bumped to v${newVersion} (versionCode: ${newCode})\n`);

@@ -44,11 +44,10 @@ export async function uploadRelease() {
 
   console.log(`📌 Target Release: ${tag} (Version Code: ${versionData.versionCode})`);
 
-  // 2. Locate release APK (prioritize native Kotlin Jetpack Compose build)
+  // 2. Locate release APK (pure native Jetpack Compose build)
   const apkPaths = [
     path.join(projectRoot, 'watzem-native-android/app/build/outputs/apk/release/app-release.apk'),
-    path.join(projectRoot, 'public/install.apk'),
-    path.join(projectRoot, 'android/app/build/outputs/apk/release/app-release.apk')
+    path.join(projectRoot, 'public/install.apk')
   ];
 
   let apkFile = apkPaths.find(p => fs.existsSync(p));
@@ -75,7 +74,7 @@ export async function uploadRelease() {
   try {
     // Stage version changes on source
     try {
-      run('git add version.json package.json watzem-native-android/app/build.gradle.kts android/app/build.gradle');
+      run('git add version.json package.json watzem-native-android/app/build.gradle.kts');
       run(`git commit -m "chore: bump version to ${tag} (code: ${versionData.versionCode})"`);
     } catch (_) {
       // Nothing new to commit on source
