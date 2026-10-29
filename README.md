@@ -5,7 +5,7 @@
 <img src="docs/icon-192.png" alt="WATZEM Logo" width="100" style="border-radius: 22px;" />
 
 ### The Ultimate Ad-Free Cinema & TV Series Streaming Experience
-**Universal Multi-Device Application for Android Mobile, Tablets, Foldables, Android TV / Google TV, macOS, and Web**
+**Universal Multi-Device Application for Android Mobile, Tablets, Foldables and Android TV / Google TV**
 
 [![Release](https://img.shields.io/github/v/release/kingpin222/watzem?color=f59e0b&label=Latest%20Version&style=for-the-badge)](https://github.com/kingpin222/watzem/releases/latest)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Android%20TV%20%7C%20macOS%20%7C%20Web-10b981?style=for-the-badge)](https://github.com/kingpin222/watzem/releases)
@@ -20,7 +20,7 @@
 
 ## 📖 Overview
 
-**WATZEM** is an independent, high-performance streaming application powered by **The Movie Database (TMDb)** and a decentralized, multi-source streaming engine. Engineered with a **pure native Kotlin & Jetpack Compose architecture** for Android alongside an adaptive **Vue 3 Web & macOS platform**, WATZEM adapts dynamically to any screen: from compact mobile phones with notch insets, up to massive 4K Smart TVs with full remote D-Pad navigation.
+**WATZEM** is an independent, high-performance streaming application and a decentralized, multi-source streaming engine. Engineered with a **pure native Kotlin & Jetpack Compose architecture** for Android, WATZEM adapts dynamically to any screen: from compact mobile phones with notch insets, up to massive 4K Smart TVs with full remote D-Pad navigation.
 
 ---
 
@@ -73,10 +73,6 @@
   * Full support for Bluetooth gamepads, TV remotes, and air mice.
 * **Dedicated TV Sidebar**: Collapsible, fast-access navigation bar for Search, Movies, TV, Explore, Watchlist, and Settings.
 
-### 💻 macOS & Multi-Platform Support
-* **macOS Desktop Application**: Native macOS bundle (`WATZEM.app`) with launch agent support, background service, and menu bar integration.
-* **Universal Deep Linking & Rich Sharing**: Full deep link support (`/watch/movie/:id`, `/watch/tv/:id`) across native Android, macOS, and Web.
-
 ### 🔄 Over-The-Air (OTA) Updates & In-App Upgrader
 * **Built-in In-App Updates**: Dedicated `UpdateView` with direct in-place APK download, real-time byte progress, and one-tap installation.
 
@@ -110,13 +106,6 @@ WATZEM features a dedicated spatial navigation engine designed for remote contro
    `https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk`
 3. Once downloaded, select **Install**.
 4. Open **WATZEM** directly from your TV Apps row.
-
-### Method 3: macOS Desktop App
-1. Clone the repository and run:
-   ```bash
-   make app
-   ```
-2. The application will be built, installed to `/Applications/WATZEM.app`, and configured with automated launchd startup.
 
 ---
 
