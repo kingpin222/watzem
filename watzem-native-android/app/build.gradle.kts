@@ -13,8 +13,8 @@ android {
         applicationId = "com.watzem.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 272
-        versionName = "1.1.270"
+        versionCode = 273
+        versionName = "1.1.271"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

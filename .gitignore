@@ -26,6 +26,7 @@ android/app/src/main/assets/public/*.apk
 .DS_Store
 .AppleDouble
 .LSOverride
+*.code-workspace
 
 # Native Android builds & secrets
 watzem-native-android/.gradle/
