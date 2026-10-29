@@ -58,7 +58,7 @@
 * **Offline Watchlist & History**: Offline-first bookmarks and watch progress stored persistently with auto-resume.
 
 ### ⚡ Multi-CDN 4K Streaming Engine
-* **VIP Streaming Servers**: High-capacity multi-server switcher featuring **CineSrc VIP** and **VidCore 4K** for reliable 1080p and 4K playback.
+* **VIP Streaming Servers**: High-capacity multi-server switcher for reliable 1080p and 4K playback.
 * **Smart Server Auto-Skip & Fallback**: Automatic server redundancy if a stream is unavailable or buffering.
 * **In-Player Server Selection**: Switch streaming servers on-the-fly directly from the player overlay using touch or TV remote.
 * **TV Series Season & Episode Selector**: Interactive episode drawer with thumbnail previews, synopsis, and watched badges.
