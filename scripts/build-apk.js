@@ -58,21 +58,21 @@ run('npx cap sync android');
 // 3.1 Guarantee no APK exists inside Android assets before compiling
 cleanAssetApks();
 
-// 4. Build APK with Gradle
-const androidDir = path.join(projectRoot, 'android');
-console.log('\n🔨 Compiling Android APK with Gradle...');
+// 4. Build Native APK with Gradle
+const nativeAndroidDir = path.join(projectRoot, 'watzem-native-android');
+console.log('\n🔨 Compiling Native Android APK (Jetpack Compose) with Gradle...');
 
 let builtApkPath = null;
 try {
-  run('./gradlew assembleRelease', androidDir);
-  const releaseApk = path.join(androidDir, 'app/build/outputs/apk/release/app-release.apk');
+  run('./gradlew assembleRelease', nativeAndroidDir);
+  const releaseApk = path.join(nativeAndroidDir, 'app/build/outputs/apk/release/app-release.apk');
   if (fs.existsSync(releaseApk)) {
     builtApkPath = releaseApk;
   }
 } catch (err) {
   console.warn('⚠️ assembleRelease failed, trying assembleDebug as fallback...');
-  run('./gradlew assembleDebug', androidDir);
-  const debugApk = path.join(androidDir, 'app/build/outputs/apk/debug/app-debug.apk');
+  run('./gradlew assembleDebug', nativeAndroidDir);
+  const debugApk = path.join(nativeAndroidDir, 'app/build/outputs/apk/debug/app-debug.apk');
   if (fs.existsSync(debugApk)) {
     builtApkPath = debugApk;
   }

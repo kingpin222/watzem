@@ -1,17 +1,18 @@
 {
-  "version": "1.1.269",
-  "latestVersion": "1.1.269",
-  "versionCode": 271,
+  "version": "1.1.270",
+  "latestVersion": "1.1.270",
+  "versionCode": 272,
   "minSupportedVersion": "1.0.0",
   "releaseDate": "2026-10-29",
-  "title": "WATZEM Update Required",
+  "title": "WATZEM Native Release Available",
   "releaseNotes": [
-    "High-performance streaming engine with CineSrc VIP & VidCore 4K",
-    "Smart server auto-skip, low-latency edge routing, and 1080p/4K fallback",
-    "Persistent server selection and screen wake lock support",
-    "General stability and performance improvements"
+    "Official WATZEM Native Release built with Jetpack Compose & ExoPlayer",
+    "Ultra-fast direct HLS streaming with hardware-accelerated 1080p and 4K playback",
+    "Multi-CDN streaming engine powered by CineSrc VIP and VidCore 4K",
+    "Unified UI with touch mobile and Android TV remote navigation",
+    "Integrated real-time adblock engine and offline watchlist"
   ],
   "downloadUrl": "https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk",
-  "fileSize": "4.03 MB",
+  "fileSize": "15.25 MB",
   "mandatory": true
 }

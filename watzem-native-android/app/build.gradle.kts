@@ -10,11 +10,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.watzem.nativeapp"
+        applicationId = "com.watzem.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 270
-        versionName = "1.1.268"
+        versionCode = 272
+        versionName = "1.1.270"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -22,9 +22,19 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("watzem-release.jks")
+            storePassword = "watzem2024"
+            keyAlias = "watzem"
+            keyPassword = "watzem2024"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
