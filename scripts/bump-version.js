@@ -78,4 +78,14 @@ if (fs.existsSync(nativeGradlePath)) {
   console.log(`🤖 [Auto-Bump] ${path.relative(projectRoot, nativeGradlePath)} updated: versionCode = ${newCode}, versionName = "${newVersion}"`);
 }
 
+// 7. Update iOS build file
+const iosProjectPath = path.join(projectRoot, 'ios/App/App.xcodeproj/project.pbxproj');
+if (fs.existsSync(iosProjectPath)) {
+  let iosProject = fs.readFileSync(iosProjectPath, 'utf-8');
+  iosProject = iosProject.replace(/CURRENT_PROJECT_VERSION = \d+;/g, `CURRENT_PROJECT_VERSION = ${newCode};`);
+  iosProject = iosProject.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${newVersion};`);
+  fs.writeFileSync(iosProjectPath, iosProject);
+  console.log(`🍎 [Auto-Bump] ${path.relative(projectRoot, iosProjectPath)} updated: CURRENT_PROJECT_VERSION = ${newCode}, MARKETING_VERSION = ${newVersion}`);
+}
+
 console.log(`✅ [Auto-Bump] Successfully bumped to v${newVersion} (versionCode: ${newCode})\n`);

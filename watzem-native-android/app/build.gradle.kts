@@ -13,7 +13,7 @@ android {
         applicationId = "com.watzem.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 273
+        versionCode = 274
         versionName = "1.1.271"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
