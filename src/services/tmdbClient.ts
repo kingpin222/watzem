@@ -613,15 +613,14 @@ export class TmdbClient {
     servers: Array<{ index: number; id: string; name: string; ok: boolean; latency: number }>;
   } {
     return {
-      bestServerIndex: 3,
-      bestServerId: 'server8',
-      bestServerName: 'Server 4',
+      bestServerIndex: 0,
+      bestServerId: 'server1',
+      bestServerName: 'Server 1',
       servers: [
-        { index: 0, id: 'server2', name: 'Server 1', ok: true, latency: 60 },
-        { index: 1, id: 'server3', name: 'Server 2', ok: true, latency: 95 },
-        { index: 2, id: 'server5', name: 'Server 3', ok: true, latency: 140 },
-        { index: 3, id: 'server8', name: 'Server 4', ok: true, latency: 45 },
-        { index: 4, id: 'server9', name: 'Server 5', ok: true, latency: 75 }
+        { index: 0, id: 'server1', name: 'Server 1', ok: true, latency: 45 },
+        { index: 1, id: 'server2', name: 'Server 2', ok: true, latency: 50 },
+        { index: 2, id: 'server3', name: 'Server 3', ok: true, latency: 38 },
+        { index: 3, id: 'server4', name: 'Server 4', ok: true, latency: 65 }
       ]
     };
   }

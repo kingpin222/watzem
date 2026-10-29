@@ -1,6 +1,6 @@
 {
   "name": "watzem-mobile-app",
-  "version": "1.1.257",
+  "version": "1.1.268",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,7 +21,12 @@
     "cap:add:android": "cap add android",
     "cap:add:ios": "cap add ios",
     "service:install": "node service-install.cjs",
-    "service:uninstall": "node service-uninstall.cjs"
+    "service:uninstall": "node service-uninstall.cjs",
+    "build:mac": "node scripts/build-mac-app.js",
+    "mac:app": "node scripts/build-mac-app.js --install --startup",
+    "mac:startup": "node scripts/mac-startup.js --enable-all",
+    "mac:startup:status": "node scripts/mac-startup.js --status",
+    "mac:startup:disable": "node scripts/mac-startup.js --disable-all"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.2",

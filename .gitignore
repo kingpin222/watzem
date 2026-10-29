@@ -16,6 +16,7 @@ dist-server/
 # Archive & Binary files
 *.zip
 *.apk
+*.app/
 screen_tv_test.png
 public/install.apk
 dist/*.apk
@@ -34,6 +35,18 @@ android/local.properties
 android/.idea/
 android/*.iml
 android/app/*.iml
+
+# Native Android builds & secrets
+watzem-native-android/.gradle/
+watzem-native-android/build/
+watzem-native-android/app/build/
+watzem-native-android/local.properties
+watzem-native-android/app/local.properties
+watzem-native-android/.idea/
+watzem-native-android/app/.idea/
+watzem-native-android/.kotlin/
+watzem-native-android/*.iml
+watzem-native-android/app/*.iml
 
 # CRITICAL: Keep signing keystore private
 android/app/*.jks

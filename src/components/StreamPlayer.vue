@@ -238,43 +238,10 @@ const trailerUrl = computed(() =>
 
 const SERVERS: StreamServerDef[] = [
   {
-    id: 'server2',
+    id: 'server1',
     name: 'Server 1',
     shortName: 'Server 1',
-    badge: 'Fast Stream',
-    getUrl: (id, isTv, season, episode) => {
-      return isTv
-        ? `https://vidsrc.pm/embed/tv/${id}/${season}/${episode}?autoplay=1`
-        : `https://vidsrc.pm/embed/movie/${id}?autoplay=1`;
-    }
-  },
-  {
-    id: 'server3',
-    name: 'Server 2',
-    shortName: 'Server 2',
-    badge: 'VIP Clean',
-    getUrl: (id, isTv, season, episode) => {
-      return isTv
-        ? `https://player.videasy.to/tv/${id}/${season}/${episode}`
-        : `https://player.videasy.to/movie/${id}`;
-    }
-  },
-  {
-    id: 'server5',
-    name: 'Server 3',
-    shortName: 'Server 3',
-    badge: 'Alternative',
-    getUrl: (id, isTv, season, episode) => {
-      return isTv
-        ? `https://vidsrc.io/embed/tv/${id}/${season}/${episode}?autoplay=1`
-        : `https://vidsrc.io/embed/movie/${id}?autoplay=1`;
-    }
-  },
-  {
-    id: 'server8',
-    name: 'Server 4',
-    shortName: 'CineSrc',
-    badge: 'VIP Auto-Skip',
+    badge: '1080p Auto',
     getUrl: (id, isTv, season, episode) => {
       const s = season || 1;
       const e = episode || 1;
@@ -290,21 +257,82 @@ const SERVERS: StreamServerDef[] = [
     }
   },
   {
-    id: 'server9',
-    name: 'Server 5',
-    shortName: 'VidSrcMe',
-    badge: 'HD Mirror',
+    id: 'server2',
+    name: 'Server 2',
+    shortName: 'Server 2',
+    badge: '1080p Pro',
     getUrl: (id, isTv, season, episode) => {
+      const s = season || 1;
+      const e = episode || 1;
+      const params = new URLSearchParams({
+        autoplay: 'true',
+        quality: '1080p',
+        color: '#f59e0b',
+        autonext: 'true'
+      });
       return isTv
-        ? `https://vidsrcme.ru/embed/tv/${id}/${season}/${episode}?autoplay=1`
-        : `https://vidsrcme.ru/embed/movie/${id}?autoplay=1`;
+        ? `https://cinesrc.st/embed/tv/${id}?s=${s}&e=${e}&${params.toString()}`
+        : `https://cinesrc.st/embed/movie/${id}?${params.toString()}`;
+    }
+  },
+  {
+    id: 'server3',
+    name: 'Server 3',
+    shortName: 'Server 3',
+    badge: 'Fast Edge',
+    getUrl: (id, isTv, season, episode) => {
+      const s = season || 1;
+      const e = episode || 1;
+      const params = new URLSearchParams({
+        autoplay: 'true',
+        prioritize: 'true',
+        color: '#f59e0b',
+        autonext: 'true'
+      });
+      return isTv
+        ? `https://cinesrc.st/embed/tv/${id}?s=${s}&e=${e}&${params.toString()}`
+        : `https://cinesrc.st/embed/movie/${id}?${params.toString()}`;
+    }
+  },
+  {
+    id: 'server4',
+    name: 'Server 4',
+    shortName: 'Server 4',
+    badge: 'VidCore 4K',
+    getUrl: (id, isTv, season, episode) => {
+      const s = season || 1;
+      const e = episode || 1;
+      return isTv
+        ? `https://vidcore.org/embed/tv/${id}/${s}/${e}`
+        : `https://vidcore.org/embed/movie/${id}`;
     }
   }
 ];
 
-// Default to Server 4 (CineSrc VIP Auto-Skip)
-const DEFAULT_SERVER_INDEX = 3;
-const activeServerIndex = ref(DEFAULT_SERVER_INDEX);
+// Default to Server 1 (CineSrc VIP Auto-Skip) or Last Known Working Server
+const DEFAULT_SERVER_INDEX = 0;
+const LAST_WORKING_SERVER_KEY = 'watzem_last_working_server_idx';
+
+const getInitialServerIndex = (): number => {
+  try {
+    const saved = localStorage.getItem(LAST_WORKING_SERVER_KEY);
+    if (saved !== null) {
+      const idx = parseInt(saved, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < SERVERS.length) {
+        return idx;
+      }
+    }
+  } catch {}
+  return DEFAULT_SERVER_INDEX;
+};
+
+const saveLastWorkingServer = (idx: number) => {
+  try {
+    localStorage.setItem(LAST_WORKING_SERVER_KEY, idx.toString());
+  } catch {}
+};
+
+const activeServerIndex = ref(getInitialServerIndex());
 const isProbingServers = ref(false);
 const serverLatencies = ref<Record<number, number>>({});
 const serverStatusMap = ref<Record<number, boolean>>({});
@@ -723,6 +751,7 @@ const selectServer = (idx: number) => {
 
   switchStream(() => {
     activeServerIndex.value = idx;
+    saveLastWorkingServer(idx);
   });
 };
 
@@ -735,6 +764,7 @@ const nextServerManual = () => {
 const markStreamHealthy = () => {
   isStreamHealthy.value = true;
   isStreamLoading.value = false;
+  saveLastWorkingServer(activeServerIndex.value);
   if (connectionWatchdogTimer) {
     clearTimeout(connectionWatchdogTimer);
     connectionWatchdogTimer = null;
@@ -1298,7 +1328,31 @@ watch([isPlaying, isFullscreen], ([playing]) => {
   }
 });
 
+let wakeLockSentinel: any = null;
+const requestWakeLock = async () => {
+  try {
+    if ('wakeLock' in navigator && (navigator as any).wakeLock?.request) {
+      wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+    }
+  } catch {}
+};
+const releaseWakeLock = async () => {
+  try {
+    if (wakeLockSentinel) {
+      await wakeLockSentinel.release();
+      wakeLockSentinel = null;
+    }
+  } catch {}
+};
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    requestWakeLock();
+  }
+};
+
 onMounted(async () => {
+  requestWakeLock();
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   (window as any).__WATZEM_TOGGLE_PLAY_PAUSE__ = togglePlayPause;
   (window as any).__WATZEM_OPEN_SERVER_MENU__ = openServerMenu;
   (window as any).__WATZEM_CLOSE_SERVER_MENU__ = closeServerMenu;
@@ -1376,6 +1430,8 @@ onMounted(async () => {
 });
 
 onUnmounted(async () => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  releaseWakeLock();
   delete (window as any).__WATZEM_TOGGLE_PLAY_PAUSE__;
   delete (window as any).__WATZEM_OPEN_SERVER_MENU__;
   delete (window as any).__WATZEM_CLOSE_SERVER_MENU__;

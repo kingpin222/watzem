@@ -1,15 +1,15 @@
 {
-  "version": "1.1.257",
-  "latestVersion": "1.1.257",
-  "versionCode": 259,
+  "version": "1.1.268",
+  "latestVersion": "1.1.268",
+  "versionCode": 270,
   "minSupportedVersion": "1.0.0",
-  "releaseDate": "2026-09-25",
+  "releaseDate": "2026-10-29",
   "title": "WATZEM Update Required",
   "releaseNotes": [
-    "Critical update required to continue streaming",
-    "Smoother 1080p and 4K stream playback performance",
-    "Refined player controls and background playback",
-    "General security & stability updates"
+    "High-performance streaming engine with CineSrc VIP & VidCore 4K",
+    "Smart server auto-skip, low-latency edge routing, and 1080p/4K fallback",
+    "Persistent server selection and screen wake lock support",
+    "General stability and performance improvements"
   ],
   "downloadUrl": "https://github.com/kingpin222/watzem/releases/latest/download/app-release.apk",
   "fileSize": "4.03 MB",

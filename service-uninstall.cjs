@@ -1,12 +1,23 @@
 const path = require('path');
+const { execSync } = require('child_process');
 
-// node-windows only runs natively on Windows
+if (process.platform === 'darwin') {
+  console.log('🍏 Detected macOS — Unloading and removing launchd LaunchAgent service...');
+  try {
+    const startupScript = path.resolve(__dirname, 'scripts', 'mac-startup.js');
+    execSync(`node "${startupScript}" --disable-service`, { stdio: 'inherit' });
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Failed to uninstall macOS service:', err.message);
+    process.exit(1);
+  }
+}
+
+// Windows Support via node-windows
 if (process.platform !== 'win32') {
   console.log('----------------------------------------------------');
-  console.log('⚠️  Notice: node-windows requires a Windows operating system.');
+  console.log('⚠️  Notice: Automatic background service is supported on macOS (launchd) and Windows.');
   console.log('   Current platform:', process.platform);
-  console.log('   To uninstall this Windows Service, run on your Windows host/server:');
-  console.log('      npm run service:uninstall');
   console.log('----------------------------------------------------');
   process.exit(0);
 }

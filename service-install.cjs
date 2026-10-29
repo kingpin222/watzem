@@ -1,13 +1,23 @@
 const path = require('path');
+const { execSync } = require('child_process');
 
-// node-windows only runs natively on Windows
+if (process.platform === 'darwin') {
+  console.log('🍏 Detected macOS — Configuring launchd LaunchAgent background service...');
+  try {
+    const startupScript = path.resolve(__dirname, 'scripts', 'mac-startup.js');
+    execSync(`node "${startupScript}" --enable-service`, { stdio: 'inherit' });
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Failed to install macOS service:', err.message);
+    process.exit(1);
+  }
+}
+
+// Windows Support via node-windows
 if (process.platform !== 'win32') {
   console.log('----------------------------------------------------');
-  console.log('⚠️  Notice: node-windows requires a Windows operating system.');
+  console.log('⚠️  Notice: Automatic background service is supported on macOS (launchd) and Windows.');
   console.log('   Current platform:', process.platform);
-  console.log('   To install this Windows Service, deploy/copy this project to your Windows host/server');
-  console.log('   and run:');
-  console.log('      npm run service:install');
   console.log('----------------------------------------------------');
   process.exit(0);
 }
